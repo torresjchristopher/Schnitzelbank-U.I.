@@ -1,7 +1,7 @@
 ﻿export const environment = {
-  production: true,
+  production: false,
   firebase: {
-    apiKey: "AIzaSyB1kn7TwyUeQRLErHfM2KSD8RPi7tJarH8",
+    apiKey: "REPLACED_BY_ENV_OR_USER",
     authDomain: "schnitzelbank-a.firebaseapp.com",
     projectId: "schnitzelbank-a",
     storageBucket: "schnitzelbank-a.firebasestorage.app",
