@@ -1,19 +1,24 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import type { Person, Memory, MemoryType } from '../types';
 
 interface AddMemoryFormProps {
   people: Person[];
-  onAddMemory: (memory: Memory) => void;
+  onAddMemories: (memories: Memory[]) => void;
   onAddPerson: (person: Person) => void;
   onCancel: () => void;
 }
 
-const AddMemoryForm: React.FC<AddMemoryFormProps> = ({ people, onAddMemory, onAddPerson, onCancel }) => {
+interface FilePayload {
+  data: string;
+  type: MemoryType;
+  name: string;
+}
+
+const AddMemoryForm: React.FC<AddMemoryFormProps> = ({ people, onAddMemories, onAddPerson, onCancel }) => {
   const [isAddingNewPerson, setIsAddingNewPerson] = useState(false);
 
   const [content, setContent] = useState('');
-  const [fileData, setFileData] = useState<string | null>(null);
-  const [fileType, setFileType] = useState<MemoryType>('text');
+  const [files, setFiles] = useState<FilePayload[]>([]);
   const [location, setLocation] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -23,18 +28,25 @@ const AddMemoryForm: React.FC<AddMemoryFormProps> = ({ people, onAddMemory, onAd
   const [birthYear, setBirthYear] = useState('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFileData(reader.result as string);
-        if (file.type.startsWith('image/')) setFileType('image');
-        else if (file.type.startsWith('audio/')) setFileType('audio');
-        else if (file.type.startsWith('video/')) setFileType('video');
-        else if (file.type === 'application/pdf') setFileType('pdf');
-        else setFileType('document');
-      };
-      reader.readAsDataURL(file);
+    const selectedFiles = e.target.files;
+    if (selectedFiles) {
+      Array.from(selectedFiles).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          let type: MemoryType = 'document';
+          if (file.type.startsWith('image/')) type = 'image';
+          else if (file.type.startsWith('audio/')) type = 'audio';
+          else if (file.type.startsWith('video/')) type = 'video';
+          else if (file.type === 'application/pdf') type = 'pdf';
+
+          setFiles(prev => [...prev, {
+            data: reader.result as string,
+            type,
+            name: file.name
+          }]);
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
 
@@ -58,54 +70,76 @@ const AddMemoryForm: React.FC<AddMemoryFormProps> = ({ people, onAddMemory, onAd
       setNewPersonName('');
       setBirthYear('');
     } else {
-      if (!content.trim() && !fileData) {
-        alert("Please provide either a story description OR upload a file.");
+      if (files.length === 0 && !content.trim()) {
+        alert("Please provide either a story description OR upload at least one file.");
         return;
       }
 
-      let finalContent = content;
-      if (fileData) {
-          finalContent = content + "|DELIM|" + fileData;
+      const memories: Memory[] = [];
+
+      if (files.length > 0) {
+        // Create a memory for each file
+        files.forEach(file => {
+          memories.push({
+            id: Math.random().toString(36).substr(2, 9),
+            type: file.type,
+            content: content + "|DELIM|" + file.data,
+            location,
+            timestamp: new Date(date),
+            tags: {
+                isFamilyMemory: true,
+                personIds: selectedPersonIds
+            }
+          });
+        });
+      } else {
+        // Text-only memory
+        memories.push({
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'text',
+          content: content,
+          location,
+          timestamp: new Date(date),
+          tags: {
+              isFamilyMemory: true,
+              personIds: selectedPersonIds
+          }
+        });
       }
 
-      onAddMemory({
-        id: Math.random().toString(36).substr(2, 9),
-        type: fileData ? fileType : 'text',
-        content: finalContent,
-        location,
-        timestamp: new Date(date),
-        tags: {
-            isFamilyMemory: true,
-            personIds: selectedPersonIds
-        }
-      });
+      onAddMemories(memories);
       onCancel();
     }
   };
 
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   return (
-    <div className="card-modern shadow-lg animate-slide-up mx-auto" style={{ maxWidth: '800px' }}>
-      <div className="card-header bg-white border-bottom p-4">
+    <div className="card-modern shadow-2xl animate-slide-up mx-auto" style={{ maxWidth: '900px', border: 'none' }}>
+      <div className="card-header bg-white border-bottom p-10">
         <div className="d-flex justify-content-between align-items-center">
-          <h4 className="h5 mb-0 fw-bold">
-            {isAddingNewPerson ? 'Register New Member' : 'Deposit New Artifact'}
+          <h4 className="h3 mb-0" style={{ fontFamily: 'var(--font-serif)' }}>
+            {isAddingNewPerson ? 'Registry Enrollment' : 'Archival Deposit'}
           </h4>
           <button
             type="button" 
-            className="btn btn-link text-decoration-none p-0 small fw-bold text-primary"
+            className="btn btn-link text-decoration-none p-0 small fw-bold text-uppercase tracking-widest text-muted"
+            style={{ fontSize: '0.65rem' }}
             onClick={() => setIsAddingNewPerson(!isAddingNewPerson)}
           >
-            {isAddingNewPerson ? '← Back to Deposit' : '+ Register Member First'}
+            {isAddingNewPerson ? 'Return to Deposit' : 'Register New Member'}
           </button>
         </div>
       </div>
 
-      <div className="card-body p-4">
+      <div className="card-body p-10">
         <form onSubmit={handleSubmit}>
           {isAddingNewPerson ? (
             <div className="animate-slide-up">
-              <div className="mb-4">
-                <label className="small fw-bold text-muted mb-2 d-block">Full Legal Name</label>
+              <div className="mb-8">
+                <label className="small fw-bold text-muted mb-2 d-block text-uppercase tracking-widest" style={{ fontSize: '0.6rem' }}>Legal Full Name</label>
                 <input
                   type="text"
                   className="form-control-modern w-100"
@@ -115,8 +149,8 @@ const AddMemoryForm: React.FC<AddMemoryFormProps> = ({ people, onAddMemory, onAd
                   required
                 />
               </div>
-              <div className="mb-4">
-                <label className="small fw-bold text-muted mb-2 d-block">Year of Birth</label>
+              <div className="mb-8">
+                <label className="small fw-bold text-muted mb-2 d-block text-uppercase tracking-widest" style={{ fontSize: '0.6rem' }}>Year of Birth</label>
                 <input
                   type="number"
                   className="form-control-modern w-100"
@@ -129,15 +163,15 @@ const AddMemoryForm: React.FC<AddMemoryFormProps> = ({ people, onAddMemory, onAd
             </div>
           ) : (
             <div className="animate-slide-up">
-              <div className="mb-4 p-4 bg-light rounded-3 border">
-                <label className="small fw-bold text-muted mb-3 d-block text-center">Tag family members to this record</label>
-                <div className="d-flex flex-wrap gap-2 justify-content-center">
+              <div className="mb-10 p-6 border-bottom">
+                <label className="small fw-bold text-muted mb-4 d-block text-center text-uppercase tracking-widest" style={{ fontSize: '0.6rem' }}>Lineage Attribution</label>
+                <div className="d-flex flex-wrap gap-3 justify-content-center">
                     {people.map(p => (
                         <button 
                             key={p.id}
                             type="button"
                             onClick={() => togglePersonSelection(p.id)}
-                            className={selectedPersonIds.includes(p.id) ? "btn btn-sm rounded-pill px-3 btn-primary-modern" : "btn btn-sm rounded-pill px-3 btn-secondary-modern"}
+                            className={selectedPersonIds.includes(p.id) ? "badge-modern bg-dark text-white" : "badge-modern bg-white text-muted border-muted"}
                         >
                             {p.name}
                         </button>
@@ -145,52 +179,68 @@ const AddMemoryForm: React.FC<AddMemoryFormProps> = ({ people, onAddMemory, onAd
                 </div>
               </div>
 
-              <div className="row g-4">
+              <div className="row g-5">
                   <div className="col-md-7 mb-3">
-                      <label className="small fw-bold text-muted mb-2 d-block">Description or Transcription</label>
+                      <label className="small fw-bold text-muted mb-3 d-block text-uppercase tracking-widest" style={{ fontSize: '0.6rem' }}>Historical Narrative</label>
                       <textarea
                         className="form-control-modern w-100"
                         rows={6}
-                        placeholder="Share the story or transcribe the document..."
+                        style={{ fontSize: '1.4rem', fontStyle: 'italic' }}
+                        placeholder="Detail the significance of this record..."
                         value={content}
                         onChange={(e) => setContent(e.target.value)} 
                       />
                   </div>
                   <div className="col-md-5 mb-3">
-                      <label className="small fw-bold text-muted mb-2 d-block">File Upload</label>
-                      <div className="p-4 border border-2 border-dashed rounded-3 bg-light h-100 d-flex flex-column justify-content-center align-items-center transition-all hover:bg-white hover:border-primary">
+                      <label className="small fw-bold text-muted mb-3 d-block text-center text-uppercase tracking-widest" style={{ fontSize: '0.6rem' }}>Physical Evidence</label>
+                      <div className="deposit-zone h-100 d-flex flex-column justify-content-center align-items-center position-relative">
                         <input
                             type="file"
                             id="fileUpload"
-                            className="d-none"
+                            className="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer"
                             onChange={handleFileChange}
                             accept="image/*,audio/*,video/*,.pdf"
+                            multiple
                         />
-                        <label htmlFor="fileUpload" className="btn btn-secondary-modern px-4 py-2">
-                            {fileData ? 'Change File' : 'Select PDF or Image'}
-                        </label>
-                        {fileData && <div className="mt-3 small text-success fw-bold">✓ Ready for deposit</div>}
+                        <div className="text-center">
+                            <div className="small fw-bold text-uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Select Files</div>
+                            <div className="small text-muted mt-2">Digital Archiving Active</div>
+                        </div>
                       </div>
                   </div>
               </div>
 
-              <div className="row mt-3">
+              {files.length > 0 && (
+                <div className="mt-8 p-4 bg-light">
+                    <label className="small fw-bold text-muted mb-3 d-block text-uppercase tracking-widest" style={{ fontSize: '0.6rem' }}>Staged Records ({files.length})</label>
+                    <div className="d-flex flex-wrap gap-2">
+                        {files.map((file, idx) => (
+                            <div key={idx} className="badge-modern bg-white border d-flex align-items-center gap-3 py-2 px-4">
+                                <span className="text-truncate" style={{ maxWidth: '200px' }}>{file.name}</span>
+                                <button type="button" className="btn-close small" style={{ fontSize: '0.4rem' }} onClick={() => removeFile(idx)}></button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+              )}
+
+              <div className="row mt-10">
                 <div className="col-md-6 mb-3">
-                  <label className="small fw-bold text-muted mb-2 d-block">Provenance (Location)</label>
-                  <input type="text" className="form-control-modern w-100" placeholder="e.g. Queens, NY" value={location} onChange={(e) => setLocation(e.target.value)} />   
+                  <label className="small fw-bold text-muted mb-2 d-block text-uppercase tracking-widest" style={{ fontSize: '0.6rem' }}>Geographic Provenance</label>
+                  <input type="text" className="form-control-modern w-100" placeholder="LOCATION" value={location} onChange={(e) => setLocation(e.target.value)} />   
                 </div>
                 <div className="col-md-6 mb-3">
-                  <label className="small fw-bold text-muted mb-2 d-block">Approximate Date</label>
+                  <label className="small fw-bold text-muted mb-2 d-block text-uppercase tracking-widest" style={{ fontSize: '0.6rem' }}>Temporal Marker</label>
                   <input type="date" className="form-control-modern w-100" value={date} onChange={(e) => setDate(e.target.value)} required />
                 </div>
               </div>
             </div>
           )}
 
-          <div className="d-flex justify-content-end gap-3 pt-4 border-top">
-            <button type="button" className="btn btn-secondary-modern" onClick={onCancel}>Cancel</button>
-            <button type="submit" className="btn-primary-modern px-5 py-2">
-              {isAddingNewPerson ? 'Register Member' : 'Complete Deposit'}
+          <div className="d-flex justify-content-end gap-5 pt-10 mt-10 border-top">
+            <button type="button" className="btn btn-link text-muted text-decoration-none text-uppercase tracking-widest fw-bold" style={{ fontSize: '0.65rem' }} onClick={onCancel}>Abort</button>
+            <button type="submit" className="btn btn-primary-modern px-10">
+              {isAddingNewPerson ? 'Enroll' : `Commit ${files.length || 1} Record(s)`}
             </button>
           </div>
         </form>

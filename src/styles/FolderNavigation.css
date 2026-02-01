@@ -1,0 +1,154 @@
+/* Folder Navigation Styles */
+
+.folder-navigation {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.folder-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 0;
+  font-family: var(--font-sans);
+}
+
+.folder-item {
+  user-select: none;
+}
+
+.folder-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-main);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.folder-row:hover {
+  background: #f5f5f5;
+  color: var(--royal-indigo);
+}
+
+.folder-row.selected {
+  background: #e8e6f7;
+  color: var(--royal-indigo);
+  font-weight: 600;
+  border-left: 3px solid var(--royal-indigo);
+  padding-left: calc(1rem - 3px);
+}
+
+.folder-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  font-size: 0.8rem;
+  color: #999;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.folder-row.expanded .folder-toggle {
+  transform: rotate(0deg);
+}
+
+.folder-toggle-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  font-size: 0.8rem;
+  color: transparent;
+  flex-shrink: 0;
+}
+
+.folder-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.folder-name {
+  flex: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.folder-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--royal-indigo);
+  color: white;
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}
+
+.folder-children {
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scrollbar styling */
+.folder-tree::-webkit-scrollbar {
+  width: 8px;
+}
+
+.folder-tree::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.folder-tree::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 4px;
+}
+
+.folder-tree::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .folder-row {
+    padding: 0.6rem 0.8rem;
+    gap: 0.5rem;
+  }
+
+  .folder-name {
+    font-size: 0.9rem;
+  }
+
+  .folder-count {
+    font-size: 0.65rem;
+  }
+}

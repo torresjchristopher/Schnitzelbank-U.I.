@@ -3,7 +3,7 @@ import React from 'react';
 interface HeaderProps {
   onAddMemoryClick: () => void;
   onAddPersonClick: () => void;
-  onScannerClick: () => void;
+  onScannerClick?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ onAddMemoryClick, onAddPersonClick }) => {

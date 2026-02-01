@@ -4,8 +4,9 @@ export interface Person {
   id: string;
   name: string;
   birthYear: number;
-  parentId?: string; // Optional parent link for sub-families
-  familyGroup?: string; // e.g. "Branch A", "The Smiths"
+  bio?: string; // Short biography or additional details
+  parentId?: string;
+  familyGroup?: string;
   avatarUrl?: string;
 }
 
