@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "local-filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "./src",
+        "./docs"
+      ]
+    }
+  },
+  "mcp": {
+    "allowed": ["local-filesystem"],
+    "serverCommand": "stdio"
+  }
+}

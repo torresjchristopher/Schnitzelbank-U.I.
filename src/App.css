@@ -1,0 +1,104 @@
+@import url('https://fonts.googleapis.com/css2?family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600;800&display=swap');
+
+:root {
+  --app-bg: #050505; 
+  --app-text: #d4af37; /* Gold */
+  --app-primary: #d4af37;
+  --app-secondary: #aa8a2e;
+  --app-accent: rgba(212, 175, 55, 0.2);
+  --app-font-heading: 'Old Standard TT', serif;
+  --app-font-body: 'Inter', sans-serif;
+}
+
+body {
+  background-color: var(--app-bg);
+  color: var(--app-text);
+  font-family: var(--app-font-body);
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+}
+
+.App {
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--app-font-heading);
+  letter-spacing: 0.1em;
+}
+
+/* Institutional Inputs */
+.form-control {
+    background-color: transparent !important;
+    border: none;
+    border-bottom: 1px solid var(--app-accent);
+    color: var(--app-text) !important;
+    border-radius: 0;
+    padding: 1rem 0;
+    transition: all 0.4s ease;
+}
+
+.form-control:focus {
+    box-shadow: none;
+    border-bottom-color: var(--app-primary);
+}
+
+.form-control::placeholder {
+    color: rgba(212, 175, 55, 0.3);
+}
+
+/* Classic Buttons */
+.btn-warning {
+    background-color: var(--app-primary);
+    color: #000;
+    border: none;
+}
+
+.btn-warning:hover {
+    background-color: #fff;
+    color: #000;
+}
+
+.btn-outline-warning {
+    border-color: var(--app-accent);
+    color: var(--app-primary);
+}
+
+.btn-outline-warning:hover {
+    background-color: var(--app-primary);
+    color: #000;
+    border-color: var(--app-primary);
+}
+
+/* Custom Scrollbar for that classic feel */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #222;
+  border: 2px solid #000;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--app-primary);
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; filter: blur(10px); }
+  to { opacity: 1; filter: blur(0); }
+}
+
+/* Force Graph overrides for professional look */
+.force-graph-container canvas {
+    filter: sepia(0.5) brightness(0.8) contrast(1.2);
+}

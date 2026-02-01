@@ -1,7 +1,0 @@
-{
-  "name": "Schnitzel Bank",
-  "integrations": {
-    "capacitor": {}
-  },
-  "type": "angular-standalone"
-}
