@@ -84,31 +84,31 @@ const AddMemoryForm: React.FC<AddMemoryFormProps> = ({ people, onAddMemory, onAd
   };
 
   return (
-    <div className="card mb-4 bg-[#0a0a0a] border border-[#d4af37]/30 rounded-0 shadow-lg">
-      <div className="card-header bg-transparent border-bottom border-[#d4af37]/10 p-5">
+    <div className="card-modern shadow-lg animate-slide-up mx-auto" style={{ maxWidth: '800px' }}>
+      <div className="card-header bg-white border-bottom p-4">
         <div className="d-flex justify-content-between align-items-center">
-          <h4 className="mb-0 uppercase tracking-widest text-[#d4af37]">
-            {isAddingNewPerson ? 'Member Enrollment' : 'Archival Deposition'}
+          <h4 className="h5 mb-0 fw-bold">
+            {isAddingNewPerson ? 'Register New Member' : 'Deposit New Artifact'}
           </h4>
           <button
             type="button" 
-            className="btn btn-link text-decoration-none p-0 small uppercase tracking-widest text-[#d4af37]/50"
+            className="btn btn-link text-decoration-none p-0 small fw-bold text-primary"
             onClick={() => setIsAddingNewPerson(!isAddingNewPerson)}
           >
-            {isAddingNewPerson ? '← Back to Archive' : '+ Register Member'}
+            {isAddingNewPerson ? '← Back to Deposit' : '+ Register Member First'}
           </button>
         </div>
       </div>
 
-      <div className="card-body p-5">
+      <div className="card-body p-4">
         <form onSubmit={handleSubmit}>
           {isAddingNewPerson ? (
-            <div className="animate-fade-in">
+            <div className="animate-slide-up">
               <div className="mb-4">
-                <label className="form-label small uppercase tracking-widest opacity-70">Legal Name</label>
+                <label className="small fw-bold text-muted mb-2 d-block">Full Legal Name</label>
                 <input
                   type="text"
-                  className="form-control bg-transparent border-0 border-bottom border-[#d4af37]/30 text-[#d4af37] rounded-0 shadow-none py-3"
+                  className="form-control-modern w-100"
                   placeholder="e.g. Mary Elizabeth Murray"
                   value={newPersonName}
                   onChange={(e) => setNewPersonName(e.target.value)}
@@ -116,10 +116,10 @@ const AddMemoryForm: React.FC<AddMemoryFormProps> = ({ people, onAddMemory, onAd
                 />
               </div>
               <div className="mb-4">
-                <label className="form-label small uppercase tracking-widest opacity-70">Birth Year</label>
+                <label className="small fw-bold text-muted mb-2 d-block">Year of Birth</label>
                 <input
                   type="number"
-                  className="form-control bg-transparent border-0 border-bottom border-[#d4af37]/30 text-[#d4af37] rounded-0 shadow-none py-3"
+                  className="form-control-modern w-100"
                   placeholder="e.g. 1950"
                   value={birthYear} 
                   onChange={(e) => setBirthYear(e.target.value)}
@@ -128,16 +128,16 @@ const AddMemoryForm: React.FC<AddMemoryFormProps> = ({ people, onAddMemory, onAd
               </div>
             </div>
           ) : (
-            <div className="animate-fade-in">
-              <div className="mb-10 p-4 border border-[#d4af37]/10 bg-black/40">
-                <label className="form-label small uppercase tracking-widest opacity-70 mb-4 d-block text-center">Attribution Tags</label>
-                <div className="d-flex flex-wrap gap-3 justify-content-center">
+            <div className="animate-slide-up">
+              <div className="mb-4 p-4 bg-light rounded-3 border">
+                <label className="small fw-bold text-muted mb-3 d-block text-center">Tag family members to this record</label>
+                <div className="d-flex flex-wrap gap-2 justify-content-center">
                     {people.map(p => (
                         <button 
                             key={p.id}
                             type="button"
                             onClick={() => togglePersonSelection(p.id)}
-                            className={selectedPersonIds.includes(p.id) ? "btn btn-sm rounded-0 px-4 py-2 transition-all btn-warning text-black fw-bold" : "btn btn-sm rounded-0 px-4 py-2 transition-all btn-outline-warning"}
+                            className={selectedPersonIds.includes(p.id) ? "btn btn-sm rounded-pill px-3 btn-primary-modern" : "btn btn-sm rounded-pill px-3 btn-secondary-modern"}
                         >
                             {p.name}
                         </button>
@@ -145,20 +145,20 @@ const AddMemoryForm: React.FC<AddMemoryFormProps> = ({ people, onAddMemory, onAd
                 </div>
               </div>
 
-              <div className="row g-5">
+              <div className="row g-4">
                   <div className="col-md-7 mb-3">
-                      <label className="form-label small uppercase tracking-widest opacity-70">Historical Narrative</label>
+                      <label className="small fw-bold text-muted mb-2 d-block">Description or Transcription</label>
                       <textarea
-                        className="form-control bg-transparent border-[#d4af37]/30 text-[#d4af37] rounded-0"
+                        className="form-control-modern w-100"
                         rows={6}
-                        placeholder="Detail the significance of this memory..."
+                        placeholder="Share the story or transcribe the document..."
                         value={content}
                         onChange={(e) => setContent(e.target.value)} 
                       />
                   </div>
                   <div className="col-md-5 mb-3">
-                      <label className="form-label small uppercase tracking-widest opacity-70">Physical Artifact (Upload)</label>
-                      <div className="p-5 border border-[#d4af37]/30 bg-black h-100 d-flex flex-column justify-content-center align-items-center" style={{ borderStyle: 'dashed' }}>
+                      <label className="small fw-bold text-muted mb-2 d-block">File Upload</label>
+                      <div className="p-4 border border-2 border-dashed rounded-3 bg-light h-100 d-flex flex-column justify-content-center align-items-center transition-all hover:bg-white hover:border-primary">
                         <input
                             type="file"
                             id="fileUpload"
@@ -166,31 +166,31 @@ const AddMemoryForm: React.FC<AddMemoryFormProps> = ({ people, onAddMemory, onAd
                             onChange={handleFileChange}
                             accept="image/*,audio/*,video/*,.pdf"
                         />
-                        <label htmlFor="fileUpload" className="btn btn-outline-warning rounded-0 py-3 px-10 uppercase tracking-widest small fw-bold">
-                            {fileData ? 'Modify Selection' : 'Digitalize File'}
+                        <label htmlFor="fileUpload" className="btn btn-secondary-modern px-4 py-2">
+                            {fileData ? 'Change File' : 'Select PDF or Image'}
                         </label>
-                        {fileData && <div className="mt-4 small text-warning uppercase tracking-widest">✓ Encrypted Ready</div>}
+                        {fileData && <div className="mt-3 small text-success fw-bold">✓ Ready for deposit</div>}
                       </div>
                   </div>
               </div>
 
-              <div className="row mt-8">
-                <div className="col-md-6 mb-4">
-                  <label className="form-label small uppercase tracking-widest opacity-70">Provenance (Location)</label>
-                  <input type="text" className="form-control bg-transparent border-0 border-bottom border-[#d4af37]/30 text-[#d4af37] rounded-0" value={location} onChange={(e) => setLocation(e.target.value)} />   
+              <div className="row mt-3">
+                <div className="col-md-6 mb-3">
+                  <label className="small fw-bold text-muted mb-2 d-block">Provenance (Location)</label>
+                  <input type="text" className="form-control-modern w-100" placeholder="e.g. Queens, NY" value={location} onChange={(e) => setLocation(e.target.value)} />   
                 </div>
-                <div className="col-md-6 mb-4">
-                  <label className="form-label small uppercase tracking-widest opacity-70">Temporal Marker (Date)</label>
-                  <input type="date" className="form-control bg-transparent border-0 border-bottom border-[#d4af37]/30 text-[#d4af37] rounded-0" value={date} onChange={(e) => setDate(e.target.value)} required />
+                <div className="col-md-6 mb-3">
+                  <label className="small fw-bold text-muted mb-2 d-block">Approximate Date</label>
+                  <input type="date" className="form-control-modern w-100" value={date} onChange={(e) => setDate(e.target.value)} required />
                 </div>
               </div>
             </div>
           )}
 
-          <div className="d-flex justify-content-end gap-5 pt-8 border-top border-[#d4af37]/10">
-            <button type="button" className="btn btn-link text-[#d4af37]/50 text-decoration-none uppercase tracking-widest small" onClick={onCancel}>Abort</button>
-            <button type="submit" className="btn btn-warning px-10 py-3 rounded-0 uppercase tracking-widest fw-bold shadow-lg">
-              {isAddingNewPerson ? 'Register Member' : 'Archive Memory'}
+          <div className="d-flex justify-content-end gap-3 pt-4 border-top">
+            <button type="button" className="btn btn-secondary-modern" onClick={onCancel}>Cancel</button>
+            <button type="submit" className="btn-primary-modern px-5 py-2">
+              {isAddingNewPerson ? 'Register Member' : 'Complete Deposit'}
             </button>
           </div>
         </form>

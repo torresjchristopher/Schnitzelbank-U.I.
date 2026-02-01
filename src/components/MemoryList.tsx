@@ -22,81 +22,74 @@ const MemoryList: React.FC<MemoryListProps> = ({ memories, people }) => {
 
   if (memories.length === 0) {
     return (
-      <div className="text-center py-20 bg-[#0a0a0a] border border-[#d4af37]/20 shadow-inner" style={{ borderStyle: 'dashed' }}>
-        <h4 className="text-[#d4af37]/60 uppercase tracking-widest mb-4">The Archive is Silent</h4>
-        <p className="text-[#d4af37]/30 small uppercase tracking-[0.2em]">Deposit a historical narrative or digital artifact to commence your legacy.</p>
+      <div className="text-center py-5 card-modern bg-white">
+        <div className="display-6 mb-3 opacity-20">📂</div>
+        <h4 className="h5 text-muted mb-2">No records found</h4>
+        <p className="text-muted small mb-0">Deposit your first document or photo to begin your collection.</p>
       </div>
     );
   }
 
   return (
-    <div className="memory-list mt-20">
-      <div className="d-flex align-items-center mb-10 border-bottom border-[#d4af37]/20 pb-4">
-        <h3 className="mb-0 uppercase tracking-[0.3em] text-[#d4af37] fw-bold">The Family Collection</h3>
-        <div className="ms-4 small uppercase tracking-widest text-[#d4af37]/40">[{memories.length} Depositions]</div>
-      </div>
-
-      <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-5">
+    <div className="memory-list mt-4">
+      <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
         {memories.map(memory => {
           const { text, file } = parseContent(memory);
           return (
-            <div key={memory.id} className="col">
-              <div className="card h-100 bg-[#0a0a0a] border border-[#d4af37]/20 rounded-0 shadow-lg transition-all hover:border-[#d4af37]/50">
+            <div key={memory.id} className="col animate-slide-up">
+              <div className="card-modern h-100 d-flex flex-column">
                 {file && (
-                  <div className="bg-black d-flex align-items-center justify-content-center overflow-hidden border-bottom border-[#d4af37]/10" style={{ height: '280px' }}>
+                  <div className="bg-light d-flex align-items-center justify-content-center overflow-hidden" style={{ height: '220px' }}>
                     {memory.type === 'image' ? (
-                      <img src={file} className="w-100 h-100" alt="Memory" style={{ objectFit: 'contain', filter: 'sepia(0.3) contrast(1.1)' }} />
+                      <img src={file} className="w-100 h-100" alt="Artifact" style={{ objectFit: 'cover' }} />
                     ) : (
                       <div className="text-center p-4">
-                        <div className="display-4 mb-2 text-[#d4af37]/50">📜</div>
-                        <div className="small uppercase tracking-widest text-[#d4af37]/40">{memory.type} artifact</div>
+                        <div className="display-6 mb-2 opacity-30">📄</div>
+                        <div className="small fw-bold text-muted text-uppercase">{memory.type}</div>
                       </div>
                     )}
                   </div>
                 )}
                 
-                <div className="card-body p-5">
-                  <div className="d-flex justify-content-between align-items-start mb-6">
-                    <span className="small uppercase tracking-widest text-[#d4af37]/60 border border-[#d4af37]/30 px-3 py-1">
+                <div className="card-body p-4 flex-grow-1">
+                  <div className="d-flex justify-content-between align-items-start mb-3">
+                    <span className="badge-modern bg-primary-subtle text-primary border-primary">
                       {memory.type}
                     </span>
-                    <small className="text-[#d4af37]/40 uppercase tracking-widest">
+                    <small className="text-muted fw-bold">
                       {new Date(memory.timestamp).getFullYear()}
                     </small>
                   </div>
                   
-                  {memory.location && (
-                    <div className="small text-[#d4af37]/50 mb-4 uppercase tracking-widest d-flex align-items-center">
-                      <span className="me-2">⚐</span> {memory.location}
-                    </div>
-                  )}
-                  
                   {text && (
-                    <p className="card-text text-[#d4af37]/80 italic" style={{ 
-                      fontSize: '1.05rem', 
-                      lineHeight: '1.8',
-                      fontFamily: '"Old Standard TT", serif',
+                    <p className="card-text text-dark mb-4" style={{ 
+                      fontSize: '0.95rem', 
+                      lineHeight: '1.6',
                       display: '-webkit-box',
-                      WebkitLineClamp: '8',
+                      WebkitLineClamp: '4',
                       WebkitBoxOrient: 'vertical',
                       overflow: 'hidden'
                     }}>
-                      "{text}"
+                      {text}
                     </p>
+                  )}
+
+                  {memory.location && (
+                    <div className="small text-muted d-flex align-items-center mt-auto">
+                      <span className="me-2">📍</span> {memory.location}
+                    </div>
                   )}
                 </div>
 
-                <div className="card-footer bg-transparent border-0 px-5 pb-5">
-                  <div className="pt-4 border-top border-[#d4af37]/10">
-                    <small className="text-[#d4af37]/30 d-block mb-2 text-uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>
-                      Attributed Lineage
+                <div className="card-footer bg-light border-0 px-4 py-3">
+                    <small className="text-muted d-block mb-1 text-uppercase fw-bold" style={{ fontSize: '0.65rem', letterSpacing: '0.05em' }}>
+                      Attributed To
                     </small>
-                    <div className="small uppercase tracking-widest text-[#d4af37] fw-bold">
+                    <div className="small fw-bold text-truncate">
                       {memory.tags.isFamilyMemory 
-                        ? "Universal Ancestry" 
-                        : memory.tags.personIds.map(id => getPersonName(id)).join(' • ')}
+                        ? "Universal Collection" 
+                        : memory.tags.personIds.map(id => getPersonName(id)).join(', ')}
                     </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -104,7 +97,6 @@ const MemoryList: React.FC<MemoryListProps> = ({ memories, people }) => {
         })}
       </div>
     </div>
-  );
   );
 };
 

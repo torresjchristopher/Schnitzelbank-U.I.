@@ -1,104 +1,140 @@
-@import url('https://fonts.googleapis.com/css2?family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --app-bg: #050505; 
-  --app-text: #d4af37; /* Gold */
-  --app-primary: #d4af37;
-  --app-secondary: #aa8a2e;
-  --app-accent: rgba(212, 175, 55, 0.2);
-  --app-font-heading: 'Old Standard TT', serif;
-  --app-font-body: 'Inter', sans-serif;
+  --primary: #4f46e5; /* Indigo */
+  --primary-hover: #4338ca;
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --text-main: #0f172a; /* Slate 900 */
+  --text-muted: #64748b; /* Slate 500 */
+  --border-color: #e2e8f0;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --radius: 12px;
 }
 
 body {
-  background-color: var(--app-bg);
-  color: var(--app-text);
-  font-family: var(--app-font-body);
-  line-height: 1.6;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: var(--font-sans);
   margin: 0;
-  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography Refinement */
+h1, h2, h3, h4 {
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--text-main);
 }
 
 .App {
   min-height: 100vh;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--app-font-heading);
-  letter-spacing: 0.1em;
+/* Modern Header */
+.navbar-modern {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 1rem 0;
 }
 
-/* Institutional Inputs */
-.form-control {
-    background-color: transparent !important;
-    border: none;
-    border-bottom: 1px solid var(--app-accent);
-    color: var(--app-text) !important;
-    border-radius: 0;
-    padding: 1rem 0;
-    transition: all 0.4s ease;
+/* Clean Cards (Whisk Style) */
+.card-modern {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
 }
 
-.form-control:focus {
-    box-shadow: none;
-    border-bottom-color: var(--app-primary);
+.card-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
-.form-control::placeholder {
-    color: rgba(212, 175, 55, 0.3);
+/* Inputs & Forms */
+.form-control-modern {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Classic Buttons */
-.btn-warning {
-    background-color: var(--app-primary);
-    color: #000;
-    border: none;
+.form-control-modern:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-.btn-warning:hover {
-    background-color: #fff;
-    color: #000;
+/* Buttons */
+.btn-primary-modern {
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
 }
 
-.btn-outline-warning {
-    border-color: var(--app-accent);
-    color: var(--app-primary);
+.btn-primary-modern:hover {
+  background-color: var(--primary-hover);
 }
 
-.btn-outline-warning:hover {
-    background-color: var(--app-primary);
-    color: #000;
-    border-color: var(--app-primary);
+.btn-secondary-modern {
+  background-color: white;
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.6rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
 }
 
-/* Custom Scrollbar for that classic feel */
-::-webkit-scrollbar {
-  width: 8px;
+.btn-secondary-modern:hover {
+  background-color: #f1f5f9;
 }
 
-::-webkit-scrollbar-track {
-  background: #000;
+/* Tree Container */
+#tree-container {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
 }
 
-::-webkit-scrollbar-thumb {
-  background: #222;
-  border: 2px solid #000;
+/* Artifact Display */
+.artifact-img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  border-radius: 8px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--app-primary);
+.badge-modern {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.8s ease-out;
+/* Animations */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; filter: blur(10px); }
-  to { opacity: 1; filter: blur(0); }
-}
-
-/* Force Graph overrides for professional look */
-.force-graph-container canvas {
-    filter: sepia(0.5) brightness(0.8) contrast(1.2);
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out forwards;
 }

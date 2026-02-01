@@ -33,20 +33,20 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({ personToEdit, onSave, onC
   };
 
   return (
-    <div className="card mb-4 bg-[#0a0a0a] border border-[#d4af37]/30 rounded-0 shadow-lg">
-      <div className="card-body p-5">
-        <h4 className="mb-8 uppercase tracking-widest text-[#d4af37] border-bottom border-[#d4af37]/10 pb-4">
-          {personToEdit ? 'Amend Lineage Record' : 'Enroll New Family Member'}
+    <div className="card-modern shadow-lg animate-slide-up">
+      <div className="card-body p-4">
+        <h4 className="h5 mb-4">
+          {personToEdit ? 'Update Family Member' : 'New Family Member'}
         </h4>
         
         <form onSubmit={handleSubmit}>
-          <div className="row g-4">
+          <div className="row g-3">
             <div className="col-md-8 mb-3">
-              <label className="form-label small uppercase tracking-widest opacity-70">Legal Name</label>
+              <label className="small fw-bold text-muted mb-2 d-block">Full Name</label>
               <input 
                 type="text" 
-                className="form-control bg-transparent border-0 border-bottom border-[#d4af37]/30 text-[#d4af37] rounded-0 shadow-none" 
-                placeholder="e.g. John Fitzgerald Murray"
+                className="form-control-modern w-100" 
+                placeholder="e.g. Mary Elizabeth Murray"
                 value={name} 
                 onChange={(e) => setName(e.target.value)} 
                 autoFocus
@@ -54,10 +54,10 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({ personToEdit, onSave, onC
               />
             </div>
             <div className="col-md-4 mb-3">
-              <label className="form-label small uppercase tracking-widest opacity-70">Year of Birth</label>
+              <label className="small fw-bold text-muted mb-2 d-block">Year of Birth</label>
               <input 
                 type="number" 
-                className="form-control bg-transparent border-0 border-bottom border-[#d4af37]/30 text-[#d4af37] rounded-0 shadow-none" 
+                className="form-control-modern w-100" 
                 placeholder="YYYY"
                 value={birthYear} 
                 onChange={(e) => setBirthYear(e.target.value)} 
@@ -66,10 +66,10 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({ personToEdit, onSave, onC
             </div>
           </div>
 
-          <div className="d-flex justify-content-end gap-4 mt-6">
-            <button type="button" className="btn btn-link text-[#d4af37]/50 text-decoration-none uppercase tracking-widest small" onClick={onCancel}>Abort</button>
-            <button type="submit" className="btn btn-warning px-8 py-2 rounded-0 uppercase tracking-widest fw-bold">
-              {personToEdit ? 'Commit Record' : 'Registry Entry'}
+          <div className="d-flex justify-content-end gap-2 mt-3 pt-3 border-top">
+            <button type="button" className="btn btn-secondary-modern" onClick={onCancel}>Cancel</button>
+            <button type="submit" className="btn-primary-modern px-4">
+              {personToEdit ? 'Save Changes' : 'Enroll Member'}
             </button>
           </div>
         </form>

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { db } from '../firebase';
-import { doc, getDoc, updateDoc, arrayUnion, collection, addDoc } from "firebase/firestore";
-import type { Person, Memory } from '../types';
+import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import type { Person } from '../types';
 
 interface ScannerProps {
   familyKey: string;
@@ -88,57 +88,57 @@ export default function Scanner({ familyKey, people, onSuccess, onCancel }: Scan
 
   if (step === 'SCAN') {
     return (
-      <div className="scanner-container bg-[#0a0a0a] border border-[#d4af37]/30 p-6 text-[#d4af37]">
-        <div className="d-flex justify-content-between align-items-center mb-6 border-bottom border-[#d4af37]/20 pb-4">
-          <h3 className="uppercase tracking-widest mb-0">Artifact Scanner</h3>
-          <button className="btn btn-outline-warning btn-sm rounded-0" onClick={onCancel}>Cancel</button>
+      <div className="scanner-container bg-[#0a0a0a] border border-[#d4af37]/10 p-12 text-[#d4af37]">
+        <div className="d-flex justify-content-between align-items-center mb-10 border-bottom border-[#d4af37]/10 pb-6">
+          <h3 className="uppercase tracking-[0.4em] mb-0 fw-light">Artifact Digitization</h3>
+          <button className="btn btn-link text-[#d4af37]/40 text-decoration-none small uppercase tracking-widest hover:text-[#d4af37]" onClick={onCancel}>Abort Operation</button>
         </div>
         
-        <div className="row g-4">
+        <div className="row g-5">
           <div className="col-md-6">
-            <label className="small uppercase tracking-[0.2em] mb-3 opacity-70">Main Artifact Image</label>
+            <label className="small uppercase tracking-[0.4em] mb-4 opacity-40 d-block text-center">Primary Evidence</label>
             <div 
-              className="border border-[#d4af37]/20 d-flex justify-content-center align-items-center bg-black" 
-              style={{height: '300px', borderStyle: 'dashed', cursor: 'pointer', overflow: 'hidden'}}
+              className="border border-[#d4af37]/10 d-flex justify-content-center align-items-center bg-black transition-all hover:border-[#d4af37]/40" 
+              style={{height: '400px', cursor: 'pointer', overflow: 'hidden'}}
               onClick={() => handleScan('FRONT')}
             >
               {frontImage ? (
                 <img src={frontImage} alt="Front" className="w-100 h-100 object-fit-contain" />
               ) : (
                 <div className="text-center">
-                  <div className="display-4 mb-2">+</div>
-                  <div className="small uppercase tracking-widest">Tap to Scan Front</div>
+                  <div className="display-4 mb-4 text-[#d4af37]/20">+</div>
+                  <div className="small uppercase tracking-[0.3em] text-[#d4af37]/40">Engage Optical Sensor</div>
                 </div>
               )}
             </div>
           </div>
 
           <div className="col-md-6">
-            <label className="small uppercase tracking-[0.2em] mb-3 opacity-70">Reverse / Notes (Optional)</label>
+            <label className="small uppercase tracking-[0.4em] mb-4 opacity-40 d-block text-center">Secondary / Reverse (Optional)</label>
             <div 
-              className="border border-[#d4af37]/20 d-flex justify-content-center align-items-center bg-black" 
-              style={{height: '300px', borderStyle: 'dashed', cursor: 'pointer', overflow: 'hidden'}}
+              className="border border-[#d4af37]/10 d-flex justify-content-center align-items-center bg-black transition-all hover:border-[#d4af37]/40" 
+              style={{height: '400px', cursor: 'pointer', overflow: 'hidden'}}
               onClick={() => handleScan('BACK')}
             >
               {backImage ? (
                 <img src={backImage} alt="Back" className="w-100 h-100 object-fit-contain" />
               ) : (
                 <div className="text-center">
-                  <div className="display-4 mb-2">+</div>
-                  <div className="small uppercase tracking-widest">Tap to Scan Back</div>
+                  <div className="display-4 mb-4 text-[#d4af37]/20">+</div>
+                  <div className="small uppercase tracking-[0.3em] text-[#d4af37]/40">Capture Reverse Side</div>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        <div className="mt-8 text-center">
+        <div className="mt-16 text-center">
            <button 
-             className="btn btn-warning px-10 py-3 rounded-0 uppercase tracking-widest fw-bold"
+             className="btn btn-gold px-12 py-4"
              disabled={!frontImage}
              onClick={() => setStep('METADATA')}
            >
-             Continue to Metadata →
+             Continue to Attribution →
            </button>
         </div>
       </div>
@@ -147,40 +147,41 @@ export default function Scanner({ familyKey, people, onSuccess, onCancel }: Scan
 
   if (step === 'METADATA') {
     return (
-      <div className="metadata-container bg-[#0a0a0a] border border-[#d4af37]/30 p-8 text-[#d4af37]">
-        <h3 className="uppercase tracking-widest mb-8 border-bottom border-[#d4af37]/20 pb-4">Artifact Provenance</h3>
+      <div className="metadata-container bg-[#0a0a0a] border border-[#d4af37]/10 p-16 text-[#d4af37]">
+        <h3 className="uppercase tracking-[0.4em] mb-12 border-bottom border-[#d4af37]/10 pb-6 fw-light">Artifact Provenance</h3>
         
         <div className="row g-5">
            <div className="col-md-6">
-                <label className="form-label small uppercase tracking-widest opacity-70">Subject Attribution</label>
-                <div className="d-flex gap-4 mb-4">
+                <label className="small uppercase tracking-[0.4em] opacity-40 mb-6 d-block">Lineage Subject Attribution</label>
+                <div className="d-flex gap-5 mb-8">
                     <div className="form-check">
-                        <input className="form-check-input" type="radio" name="tagScope" id="tagFamily" checked={tagScope === 'FAMILY'} onChange={() => setTagScope('FAMILY')} />
-                        <label className="form-check-label small uppercase tracking-widest" htmlFor="tagFamily">General Archive</label>
+                        <input className="form-check-input bg-transparent border-[#d4af37]/30" type="radio" name="tagScope" id="tagFamily" checked={tagScope === 'FAMILY'} onChange={() => setTagScope('FAMILY')} />
+                        <label className="form-check-label small uppercase tracking-widest text-[#d4af37]/80" htmlFor="tagFamily">Collective Archive</label>
                     </div>
                     <div className="form-check">
-                        <input className="form-check-input" type="radio" name="tagScope" id="tagPerson" checked={tagScope === 'PERSON'} onChange={() => setTagScope('PERSON')} />
-                        <label className="form-check-label small uppercase tracking-widest" htmlFor="tagPerson">Specific Member</label>
+                        <input className="form-check-input bg-transparent border-[#d4af37]/30" type="radio" name="tagScope" id="tagPerson" checked={tagScope === 'PERSON'} onChange={() => setTagScope('PERSON')} />
+                        <label className="form-check-label small uppercase tracking-widest text-[#d4af37]/80" htmlFor="tagPerson">Individual Subject</label>
                     </div>
                 </div>
                 
                 {tagScope === 'PERSON' && (
                     <select 
-                        className="form-select bg-transparent border-[#d4af37]/30 text-[#d4af37] rounded-0 mb-4" 
+                        className="form-select bg-black border-0 border-bottom border-[#d4af37]/30 text-[#d4af37] rounded-0 mb-8 py-3 px-0 shadow-none" 
                         value={selectedPersonId} 
                         onChange={(e) => setSelectedPersonId(e.target.value)}
                     >
-                        <option value="" className="bg-black">Select family member...</option>
-                        {people.map(p => <option key={p.id} value={p.id} className="bg-black">{p.name}</option>)}
+                        <option value="" className="bg-black">SELECT FAMILY MEMBER...</option>
+                        {people.map(p => <option key={p.id} value={p.id} className="bg-black">{p.name.toUpperCase()}</option>)}
                     </select>
                 )}
 
-                <div className="mb-4">
-                    <label className="form-label small uppercase tracking-widest opacity-70">Narrative / Description</label>
+                <div className="mb-8">
+                    <label className="small uppercase tracking-[0.4em] opacity-40 mb-4 d-block">Historical Narrative</label>
                     <textarea 
-                        className="form-control bg-transparent border-[#d4af37]/30 text-[#d4af37] rounded-0" 
-                        rows={5} 
-                        placeholder="Detail the significance of this artifact..."
+                        className="form-control bg-transparent border-[#d4af37]/20 text-[#d4af37] rounded-0 italic" 
+                        rows={6} 
+                        style={{ fontFamily: 'var(--font-serif)', fontSize: '1.2rem' }}
+                        placeholder="Detail the significance of this deposition..."
                         value={description}
                         onChange={e => setDescription(e.target.value)}
                     ></textarea>
@@ -188,21 +189,21 @@ export default function Scanner({ familyKey, people, onSuccess, onCancel }: Scan
            </div>
 
            <div className="col-md-6">
-                <div className="mb-4">
-                    <label className="form-label small uppercase tracking-widest opacity-70">Temporal Marker (Date)</label>
-                    <input type="date" className="form-control bg-transparent border-[#d4af37]/30 text-[#d4af37] rounded-0" value={date} onChange={e => setDate(e.target.value)} />
-                </div>
                 <div className="mb-8">
-                    <label className="form-label small uppercase tracking-widest opacity-70">Geographic Location</label>
-                    <input type="text" className="form-control bg-transparent border-[#d4af37]/30 text-[#d4af37] rounded-0" placeholder="e.g. Long Island City, NY" value={location} onChange={e => setLocation(e.target.value)} />
+                    <label className="small uppercase tracking-[0.4em] opacity-40 mb-4 d-block">Temporal Marker</label>
+                    <input type="date" className="form-control" value={date} onChange={e => setDate(e.target.value)} />
+                </div>
+                <div className="mb-12">
+                    <label className="small uppercase tracking-[0.4em] opacity-40 mb-4 d-block">Geographic Provenance</label>
+                    <input type="text" className="form-control" placeholder="LOCATION OF ORIGIN" value={location} onChange={e => setLocation(e.target.value)} />
                 </div>
 
-                <div className="d-grid gap-3">
-                    <button className="btn btn-warning py-3 rounded-0 uppercase tracking-widest fw-bold" onClick={handleUpload}>
-                        Commit to Archive
+                <div className="d-grid gap-4">
+                    <button className="btn btn-gold py-4" onClick={handleUpload}>
+                        Commit to Sovereignty Vault
                     </button>
-                    <button className="btn btn-outline-warning py-3 rounded-0 uppercase tracking-widest" onClick={() => setStep('SCAN')}>
-                        Back to Scanner
+                    <button className="btn btn-link text-[#d4af37]/30 text-decoration-none uppercase tracking-widest small" onClick={() => setStep('SCAN')}>
+                        Modify Evidence
                     </button>
                 </div>
            </div>

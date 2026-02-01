@@ -36,26 +36,29 @@ const TreeDisplay: React.FC<TreeDisplayProps> = ({ tree, onSelectPerson }) => {
       source: [link.source.x, link.source.y] as any,
       target: [link.target.x, link.target.y] as any
     });
-    return <path key={i} d={path!} fill="none" stroke="#d4af37" strokeWidth="1.5" strokeOpacity="0.3" />;
+    return <path key={i} d={path!} fill="none" stroke="#e2e8f0" strokeWidth="2" />;
   });
 
   const nodeElements = treeLayout.descendants().map((node, i) => (
     <g key={i} transform={"translate(" + node.x + "," + node.y + ")"} className="cursor-pointer group">
-      <circle r="4" fill="#d4af37" className="group-hover:scale-150 transition-transform" />
+      <circle r="6" fill={(node.data as any).isRoot ? "#4f46e5" : "#fff"} stroke="#4f46e5" strokeWidth="2" className="group-hover:scale-125 transition-transform" />
       <foreignObject x="-75" y="15" width="150" height="80" style={{ textAlign: 'center' }}>
         <div 
           onClick={() => onSelectPerson((node.data as any).id === 'FAMILY' ? null : (node.data as any).id)}
-          className="text-[#d4af37] hover:text-white transition-all duration-500 uppercase tracking-widest leading-tight"
+          className="text-slate-900 transition-all duration-300"
           style={{ 
-            fontFamily: '"Old Standard TT", serif', 
-            fontWeight: (node.data as any).isRoot ? 'bold' : 'normal',
-            fontSize: (node.data as any).isRoot ? '16px' : '12px',
+            fontFamily: "'Inter', sans-serif",
+            fontWeight: (node.data as any).isRoot ? '700' : '500',
+            fontSize: (node.data as any).isRoot ? '14px' : '12px',
             cursor: 'pointer',
-            borderBottom: '1px solid rgba(212, 175, 55, 0.2)'
+            padding: '4px 8px',
+            background: 'rgba(255,255,255,0.8)',
+            borderRadius: '4px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
           }}
         >
           {(node.data as any).name}
-          {!(node.data as any).isRoot && <div className="text-[9px] opacity-50 font-sans tracking-normal mt-1">{(node.data as any).birthYear}</div>}
+          {!(node.data as any).isRoot && <div className="text-[10px] text-slate-500 font-medium mt-1">{(node.data as any).birthYear}</div>}
         </div>
       </foreignObject>
     </g>
@@ -67,7 +70,7 @@ const TreeDisplay: React.FC<TreeDisplayProps> = ({ tree, onSelectPerson }) => {
   const maxY = Math.max(...treeLayout.descendants().map(d => d.y)) + 150;
 
   return (
-    <div className="bg-black/80 p-12 overflow-auto scrollbar-hide" style={{ maxHeight: '700px' }}>
+    <div className="bg-white p-4 overflow-auto" style={{ maxHeight: '700px' }}>
       <svg 
         width={maxX - minX} 
         height={maxY - minY} 
