@@ -1,0 +1,293 @@
+/* ============================================================================
+   SCHNITZEL BANK: EDITORIAL DESIGN SYSTEM
+   Navy luminescence + professional typography + magazine-quality spacing
+   ============================================================================ */
+
+/* --- COLOR PALETTE (Navy Luminescence) --- */
+:root {
+  /* Primary Navy Family */
+  --navy-primary: #1e1b4b;      /* Deep royal navy */
+  --navy-light: #2d2a5a;         /* Lighter navy (hover, secondary) */
+  --navy-lighter: #3d3a6a;       /* Even lighter (accents, borders) */
+  --navy-lightest: #4d4a7a;      /* Subtle backgrounds */
+  --navy-dark: #0f172a;          /* Very dark (text, shadows) */
+  
+  /* Navy Tints (for luminescence) */
+  --navy-10: rgba(30, 27, 75, 0.1);
+  --navy-20: rgba(30, 27, 75, 0.2);
+  --navy-30: rgba(30, 27, 75, 0.3);
+  --navy-50: rgba(30, 27, 75, 0.5);
+  
+  /* Accent Colors */
+  --gold-accent: #d4a574;        /* Warm gold for highlights */
+  --cream-bg: #faf8f3;           /* Warm cream background */
+  --white: #ffffff;
+  
+  /* Text Colors */
+  --text-primary: #0f172a;       /* Navy dark for body text */
+  --text-secondary: #4b5563;     /* Muted gray */
+  --text-light: #7a8394;         /* Light gray */
+  --text-white: #ffffff;
+  
+  /* Semantic Colors */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  
+  /* Typography */
+  --font-serif: 'Georgia', 'Garamond', serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Menlo', 'Monaco', 'Courier New', monospace;
+  
+  /* Spacing (8px base) */
+  --spacing-xs: 0.25rem;    /* 4px */
+  --spacing-sm: 0.5rem;     /* 8px */
+  --spacing-md: 1rem;       /* 16px */
+  --spacing-lg: 1.5rem;     /* 24px */
+  --spacing-xl: 2rem;       /* 32px */
+  --spacing-2xl: 3rem;      /* 48px */
+  --spacing-3xl: 4rem;      /* 64px */
+  
+  /* Typography Scale */
+  --fs-xs: 0.75rem;         /* 12px */
+  --fs-sm: 0.875rem;        /* 14px */
+  --fs-base: 1rem;          /* 16px */
+  --fs-lg: 1.125rem;        /* 18px */
+  --fs-xl: 1.25rem;         /* 20px */
+  --fs-2xl: 1.5rem;         /* 24px */
+  --fs-3xl: 1.875rem;       /* 30px */
+  --fs-4xl: 2.25rem;        /* 36px */
+  --fs-5xl: 3rem;           /* 48px */
+  
+  /* Line Heights */
+  --lh-tight: 1.2;
+  --lh-normal: 1.5;
+  --lh-relaxed: 1.75;
+  --lh-loose: 2;
+  
+  /* Letter Spacing */
+  --ls-tight: -0.01em;
+  --ls-normal: 0em;
+  --ls-wide: 0.025em;
+  --ls-wider: 0.05em;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.12);
+  --shadow-md: 0 4px 6px rgba(15, 23, 42, 0.1);
+  --shadow-lg: 0 10px 15px rgba(15, 23, 42, 0.1);
+  --shadow-xl: 0 20px 25px rgba(15, 23, 42, 0.1);
+  --shadow-navy: 0 10px 30px rgba(30, 27, 75, 0.2);
+  
+  /* Transitions */
+  --transition-fast: 150ms ease-in-out;
+  --transition-base: 250ms ease-in-out;
+  --transition-slow: 350ms ease-in-out;
+  
+  /* Border Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+  
+  /* Z-Index */
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-fixed: 30;
+  --z-modal-bg: 40;
+  --z-modal: 50;
+  --z-popover: 60;
+}
+
+/* --- RESET & BASE --- */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--cream-bg);
+  color: var(--text-primary);
+  line-height: var(--lh-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- TYPOGRAPHY HIERARCHY --- */
+h1 {
+  font-family: var(--font-serif);
+  font-size: var(--fs-5xl);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  color: var(--navy-primary);
+  margin-bottom: var(--spacing-lg);
+  margin-top: 0;
+}
+
+h2 {
+  font-family: var(--font-serif);
+  font-size: var(--fs-4xl);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  color: var(--navy-primary);
+  margin-bottom: var(--spacing-md);
+  margin-top: 0;
+}
+
+h3 {
+  font-family: var(--font-serif);
+  font-size: var(--fs-3xl);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-normal);
+  color: var(--navy-primary);
+  margin-bottom: var(--spacing-md);
+  margin-top: 0;
+}
+
+h4 {
+  font-family: var(--font-serif);
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  color: var(--navy-primary);
+  margin-bottom: var(--spacing-sm);
+  margin-top: 0;
+}
+
+h5 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-wider);
+  color: var(--navy-primary);
+  margin-bottom: var(--spacing-sm);
+  margin-top: 0;
+}
+
+h6 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-wider);
+  color: var(--text-light);
+  margin-bottom: var(--spacing-sm);
+  margin-top: 0;
+}
+
+p {
+  margin-bottom: var(--spacing-md);
+  margin-top: 0;
+  font-size: var(--fs-base);
+  line-height: var(--lh-relaxed);
+  color: var(--text-primary);
+}
+
+p + p {
+  margin-top: -var(--spacing-sm);
+}
+
+a {
+  color: var(--navy-primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+  border-bottom: 1px solid transparent;
+}
+
+a:hover {
+  color: var(--navy-light);
+  border-bottom-color: var(--navy-primary);
+}
+
+/* --- UTILITY CLASSES --- */
+.text-muted {
+  color: var(--text-light);
+}
+
+.text-navy {
+  color: var(--navy-primary);
+}
+
+.text-gold {
+  color: var(--gold-accent);
+}
+
+.text-uppercase {
+  text-transform: uppercase;
+  letter-spacing: var(--ls-wider);
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-sm {
+  font-size: var(--fs-sm);
+}
+
+.text-lg {
+  font-size: var(--fs-lg);
+}
+
+/* Dividers */
+hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--navy-10), transparent);
+  margin: var(--spacing-2xl) 0;
+}
+
+/* --- FOCUS STATES --- */
+:focus-visible {
+  outline: 2px solid var(--navy-primary);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--navy-primary);
+  outline-offset: 3px;
+}
+
+/* --- SCROLLBAR --- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--cream-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--navy-lighter);
+  border-radius: var(--radius-md);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--navy-light);
+}
+
+/* --- PRINT STYLES --- */
+@media print {
+  body {
+    background: white;
+  }
+  
+  a {
+    text-decoration: underline;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+}

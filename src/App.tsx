@@ -1,5 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import './styles/DesignSystem.css';
+import './styles/Magazine.css';
+import './styles/Dashboard.css';
 import './App.css';
 import TreeDisplay from './components/TreeDisplay';
 import AddMemoryForm from './components/AddMemoryForm';
@@ -7,6 +10,7 @@ import AddPersonForm from './components/AddPersonForm';
 import MemoryList from './components/MemoryList';
 import TimelineView from './components/TimelineView';
 import ArtifactDeepView from './components/ArtifactDeepView';
+import WelcomeDashboard from './components/WelcomeDashboard';
 import { ArchiveService } from './services/ArchiveService';
 import { PersistenceService, type SyncStatus } from './services/PersistenceService';
 import SyncStatusIndicator from './components/SyncStatusIndicator';
@@ -18,7 +22,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { ExportService } from './services/ExportService';
 
 type AppState = 'AUTH' | 'ACTIVE';
-type ViewMode = 'TREE' | 'ARCHIVE' | 'TIMELINE';
+type ViewMode = 'TREE' | 'ARCHIVE' | 'TIMELINE' | 'DASHBOARD';
 type DisplayStyle = 'GALLERY' | 'LEDGER';
 
 const MURRAY_PROTOCOL_KEY = "MURRAY_LEGACY_2026"; 
@@ -26,7 +30,7 @@ const MURRAY_PASSWORD = "FAMILY_STRENGTH";
 
 function App() {
   const [appState, setAppState] = useState<AppState>('AUTH');
-  const [viewMode, setViewMode] = useState<ViewMode>('TREE');
+  const [viewMode, setViewMode] = useState<ViewMode>('DASHBOARD');
   const [displayStyle, setDisplayStyle] = useState<DisplayStyle>('GALLERY');
   const [selectedArtifact, setSelectedArtifact] = useState<Memory | null>(null);
   const [viewingPerson, setViewingPerson] = useState<Person | null>(null);
@@ -328,23 +332,24 @@ function App() {
   return (
     <div className="app-layout">
       <aside className="sidebar-rail shadow-sm">
-        <div className="d-flex align-items-center gap-3 mb-5 px-2">
-            <span className="fw-bold tracking-tight h5 mb-0" style={{ color: 'var(--royal-indigo)' }}>Schnitzel Bank</span>
+        <div className="d-flex align-items-center justify-content-between gap-3 mb-5 px-3">
+            <span className="fw-bold tracking-tight h5 mb-0" style={{ color: 'var(--navy-primary)', fontSize: '1.1rem' }}>Schnitzel Bank</span>
+            <button className="btn btn-link text-muted p-0" style={{ fontSize: '0.8rem' }} onClick={() => setViewMode('DASHBOARD')} title="Home">◆</button>
         </div>
 
         <nav className="flex-grow-1">
-            <div className={`nav-item-modern ${viewMode === 'TREE' ? 'active' : ''}`} onClick={() => setViewMode('TREE')}>
-                <span className="me-2">🌳</span> Lineage Topology
+            <div className={`nav-item-modern ${viewMode === 'TREE' ? 'active' : ''}`} onClick={() => setViewMode('TREE')} style={{ cursor: 'pointer', padding: '0.75rem 1rem', marginBottom: '0.5rem', borderLeft: viewMode === 'TREE' ? '3px solid var(--gold-accent)' : '3px solid transparent', color: viewMode === 'TREE' ? 'var(--navy-primary)' : 'var(--text-secondary)', fontWeight: viewMode === 'TREE' ? '600' : '500' }}>
+                Family Tree
             </div>
-            <div className={`nav-item-modern ${viewMode === 'ARCHIVE' ? 'active' : ''}`} onClick={() => setViewMode('ARCHIVE')}>
-                <span className="me-2">📂</span> The Vault
+            <div className={`nav-item-modern ${viewMode === 'ARCHIVE' ? 'active' : ''}`} onClick={() => setViewMode('ARCHIVE')} style={{ cursor: 'pointer', padding: '0.75rem 1rem', marginBottom: '0.5rem', borderLeft: viewMode === 'ARCHIVE' ? '3px solid var(--gold-accent)' : '3px solid transparent', color: viewMode === 'ARCHIVE' ? 'var(--navy-primary)' : 'var(--text-secondary)', fontWeight: viewMode === 'ARCHIVE' ? '600' : '500' }}>
+                Memory Gallery
             </div>
-            <div className={`nav-item-modern ${viewMode === 'TIMELINE' ? 'active' : ''}`} onClick={() => setViewMode('TIMELINE')}>
-                <span className="me-2">⏳</span> Chronology
+            <div className={`nav-item-modern ${viewMode === 'TIMELINE' ? 'active' : ''}`} onClick={() => setViewMode('TIMELINE')} style={{ cursor: 'pointer', padding: '0.75rem 1rem', marginBottom: '0.5rem', borderLeft: viewMode === 'TIMELINE' ? '3px solid var(--gold-accent)' : '3px solid transparent', color: viewMode === 'TIMELINE' ? 'var(--navy-primary)' : 'var(--text-secondary)', fontWeight: viewMode === 'TIMELINE' ? '600' : '500' }}>
+                Chronology
             </div>
 
             <div className="mt-5 px-3">
-                <h6 className="small text-uppercase tracking-widest opacity-30 fw-bold mb-3" style={{ fontSize: '0.55rem' }}>Active Chronology</h6>
+                <h6 className="small text-uppercase tracking-widest opacity-30 fw-bold mb-3" style={{ fontSize: '0.55rem' }}>Recent Artifacts</h6>
                 {memoryTree.memories.slice(0, 3).map(m => (
                     <div key={m.id} className="small mb-2 text-truncate cursor-pointer opacity-60 hover:opacity-100 transition-all" style={{ fontSize: '0.7rem' }} onClick={() => setSelectedArtifact(m)}>
                         {new Date(m.timestamp).getFullYear()} • {m.content.split('|DELIM|')[0] || 'Artifact'}
@@ -357,10 +362,10 @@ function App() {
             <div className="mb-4">
               <SyncStatusIndicator compact />
             </div>
-            <button className="btn btn-primary-modern w-100 mb-2" style={{ borderRadius: '8px' }} onClick={() => setShowAddMemoryForm(true)}>+ Deposit Artifact</button>
+            <button className="btn btn-primary w-100 mb-2" style={{ borderRadius: '8px', fontSize: '0.8rem', padding: '0.6rem' }} onClick={() => setShowAddMemoryForm(true)}>Add Artifact</button>
             <div className="d-flex gap-2">
-              <button className="btn btn-secondary-modern flex-grow-1" style={{ borderRadius: '8px' }} onClick={() => handleExportMemoryBook('ZIP', 'CLASSIC')}>📦 Export ZIP</button>
-              <button className="btn btn-secondary-modern flex-grow-1" style={{ borderRadius: '8px' }} onClick={() => handleExportMemoryBook('HTML', 'CLASSIC')}>🌐 Export HTML</button>
+              <button className="btn btn-secondary flex-grow-1" style={{ borderRadius: '6px', fontSize: '0.75rem', padding: '0.5rem' }} onClick={() => handleExportMemoryBook('ZIP', 'CLASSIC')}>ZIP</button>
+              <button className="btn btn-secondary flex-grow-1" style={{ borderRadius: '6px', fontSize: '0.75rem', padding: '0.5rem' }} onClick={() => handleExportMemoryBook('HTML', 'CLASSIC')}>HTML</button>
             </div>
         </div>
       </aside>
@@ -379,6 +384,21 @@ function App() {
                 </div>
             )}
         </header>
+
+        {viewMode === 'DASHBOARD' && (
+            <WelcomeDashboard 
+              familyName={memoryTree.familyName}
+              totalMemories={memoryTree.memories.length}
+              totalPeople={memoryTree.people.length}
+              lastUpdated={memoryTree.memories.length > 0 ? new Date(memoryTree.memories[0].timestamp) : undefined}
+              onBrowseMemories={() => setViewMode('ARCHIVE')}
+              onBrowseTimeline={() => setViewMode('TIMELINE')}
+              onBrowsePeople={() => setViewMode('TREE')}
+              onViewBio={() => setEditingFamilyBio(true)}
+              onAddMemory={() => setShowAddMemoryForm(true)}
+              onExport={() => handleExportMemoryBook('ZIP', 'CLASSIC')}
+            />
+        )}
 
         {viewMode === 'TREE' && (
             <div className="animate-slide-up h-100 d-flex flex-column">
