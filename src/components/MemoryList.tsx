@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Memory, Person } from '../types';
+import '../styles/MemoryGallery.css';
 
 interface MemoryListProps {
   memories: Memory[];
@@ -23,74 +24,96 @@ const MemoryList: React.FC<MemoryListProps> = ({ memories, people, onArtifactCli
 
   if (memories.length === 0) {
     return (
-      <div className="text-center py-20 card-modern bg-white border-0">
-        <h4 className="h4 text-muted mb-2" style={{ fontFamily: 'var(--font-serif)' }}>Archive Silent</h4>
-        <p className="text-muted small text-uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>No records discovered for this chronology.</p>
+      <div className="empty-state">
+        <h3 className="empty-state-title">No Artifacts Yet</h3>
+        <p className="empty-state-text">Your archive is waiting for memories. Begin by adding your first artifact.</p>
       </div>
     );
   }
 
-  return (
-    <div className="memory-list mt-4">
-      <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-5">
-        {memories.map(memory => {
-          const { text, file } = parseContent(memory);
-          return (
-            <div key={memory.id} className="col animate-slide-up" onClick={() => onArtifactClick(memory)} style={{ cursor: 'pointer' }}>
-              <div className="card-modern h-100 d-flex flex-column border-0">
-                {file && (
-                  <div className="bg-light d-flex align-items-center justify-content-center overflow-hidden" style={{ height: '300px' }}>
-                    {memory.type === 'image' ? (
-                      <img src={file} className="w-100 h-100" alt="Artifact" style={{ objectFit: 'cover' }} />
-                    ) : (
-                      <div className="text-center p-4">
-                        <div className="small fw-bold text-muted text-uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>{memory.type}</div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                <div className="card-body p-6 flex-grow-1">
-                  <div className="d-flex justify-content-between align-items-start mb-5">
-                    <span className="badge-modern text-muted">
-                      {memory.type}
-                    </span>
-                    <small className="fw-bold text-muted" style={{ fontSize: '0.7rem' }}>
-                      {new Date(memory.timestamp).getFullYear()}
-                    </small>
-                  </div>
-                  
-                  {text && (
-                    <p className="card-text text-dark mb-6" style={{ 
-                      fontSize: '1.2rem', 
-                      lineHeight: '1.6',
-                      fontFamily: 'var(--font-serif)',
-                      fontStyle: 'italic',
-                      display: '-webkit-box',
-                      WebkitLineClamp: '4',
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden'
-                    }}>
-                      "{text}"
-                    </p>
-                  )}
+  // Sort memories by date, most recent first
+  const sortedMemories = [...memories].sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
 
-                  {memory.location && (
-                    <div className="small text-muted text-uppercase tracking-widest mt-auto" style={{ fontSize: '0.6rem' }}>
-                      PROVENANCE: {memory.location}
+  // Featured memory (first one)
+  const featured = sortedMemories[0];
+  const others = sortedMemories.slice(1);
+  const { text: featuredText, file: featuredFile } = parseContent(featured);
+
+  return (
+    <div className="memory-gallery">
+      {/* Featured Memory */}
+      <div className="featured-memory" onClick={() => onArtifactClick(featured)}>
+        {featuredFile && featured.type === 'image' && (
+          <div className="featured-image">
+            <img src={featuredFile} alt="Featured" />
+          </div>
+        )}
+        <div className="featured-content">
+          <div className="featured-badge">{featured.type.toUpperCase()}</div>
+          <h2 className="featured-title">
+            {featuredText ? featuredText.substring(0, 80) : `Artifact from ${new Date(featured.timestamp).getFullYear()}`}
+          </h2>
+          <div className="featured-meta">
+            <span className="meta-person">{getPersonName(featured.tags.personIds?.[0] || '')}</span>
+            <span className="meta-separator">•</span>
+            <span className="meta-date">{new Date(featured.timestamp).getFullYear()}</span>
+          </div>
+          <p className="featured-description">
+            {featuredText ? featuredText.substring(0, 200) + (featuredText.length > 200 ? '...' : '') : 'View full artifact details'}
+          </p>
+          <div className="featured-arrow">Explore</div>
+        </div>
+      </div>
+
+      {/* Memory Grid */}
+      <div className="memory-grid">
+        {others.map((memory) => {
+          const { text, file } = parseContent(memory);
+          const year = new Date(memory.timestamp).getFullYear();
+          const personName = getPersonName(memory.tags.personIds?.[0] || '');
+          
+          return (
+            <div 
+              key={memory.id} 
+              className="memory-card" 
+              onClick={() => onArtifactClick(memory)}
+            >
+              {/* Card Image */}
+              {file && (
+                <div className="card-image">
+                  {memory.type === 'image' ? (
+                    <img src={file} alt="Memory" />
+                  ) : (
+                    <div className="image-placeholder">
+                      <div className="placeholder-icon">▢</div>
                     </div>
                   )}
                 </div>
+              )}
+              
+              {/* Card Header */}
+              <div className="card-header-section">
+                <div className="card-badges">
+                  <span className="card-badge">{memory.type}</span>
+                  <span className="card-year">{year}</span>
+                </div>
+              </div>
 
-                <div className="card-footer bg-white border-0 px-6 py-5">
-                    <small className="text-muted d-block mb-2 text-uppercase tracking-widest" style={{ fontSize: '0.55rem' }}>
-                      Lineage
-                    </small>
-                    <div className="small fw-bold text-truncate text-uppercase" style={{ letterSpacing: '0.05em', color: 'var(--royal-indigo)' }}>
-                      {memory.tags.isFamilyMemory 
-                        ? "Universal Collection" 
-                        : memory.tags.personIds.map(id => getPersonName(id)).join(' • ')}
-                    </div>
+              {/* Card Body */}
+              <div className="card-body-section">
+                <h4 className="card-title">
+                  {text ? text.substring(0, 50) + (text.length > 50 ? '...' : '') : `Artifact from ${year}`}
+                </h4>
+                
+                <p className="card-preview">
+                  {text ? text.substring(0, 100) + (text.length > 100 ? '...' : '') : 'No description'}
+                </p>
+
+                <div className="card-footer-section">
+                  <span className="card-person">{personName}</span>
+                  {memory.location && <span className="card-location">{memory.location}</span>}
                 </div>
               </div>
             </div>
