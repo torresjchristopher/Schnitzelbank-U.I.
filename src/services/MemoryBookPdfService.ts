@@ -39,7 +39,6 @@ class MemoryBookPdfServiceImpl {
 
     // Content pages - artifacts with metadata
     let currentY = 30;
-    let pageCount = 2;
 
     for (const memory of sortedMemories) {
       const itemHeight = this.getArtifactItemHeight(memory, pageWidth, margin);
@@ -48,7 +47,6 @@ class MemoryBookPdfServiceImpl {
       if (currentY + itemHeight > pageHeight - margin) {
         doc.addPage();
         currentY = margin;
-        pageCount++;
       }
 
       // Add artifact

@@ -4,6 +4,16 @@ import { buildFolderStructure, findItemByPath, type FolderItem } from '../utils/
 import { FolderNavigation } from './FolderNavigation';
 import { FolderContents } from './FolderContents';
 
+interface MemoryData {
+  content?: string;
+  type?: string;
+  timestamp?: string | number | Date;
+  tags?: {
+    personIds?: string[];
+    isFamilyMemory?: boolean;
+  };
+}
+
 interface ModernGalleryProps {
   tree: MemoryTree;
   onExport: (format: 'ZIP' | 'PDF') => void;
@@ -128,10 +138,10 @@ const FilePreviewModal: React.FC<{ item: FolderItem; onClose: () => void }> = ({
         return () => window.removeEventListener('keydown', handleEsc);
     }, [onClose]);
 
-    const parts = (item.data as any)?.content?.split('|DELIM|') || [];
+    const parts = (item.data as MemoryData)?.content?.split('|DELIM|') || [];
     const title = parts[0] || item.name;
     const details = parts[1] || '';
-    const isImage = (item.data as any)?.type === 'image' && details.startsWith('http');
+    const isImage = (item.data as MemoryData)?.type === 'image' && details.startsWith('http');
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -146,8 +156,8 @@ const FilePreviewModal: React.FC<{ item: FolderItem; onClose: () => void }> = ({
                         <div className="min-w-0">
                             <h3 className="text-lg font-bold text-gray-900 truncate">{title}</h3>
                             <p className="text-xs text-gray-500">
-                                {(item.data as any)?.timestamp 
-                                    ? new Date((item.data as any).timestamp).toLocaleDateString(undefined, { dateStyle: 'full' })
+                                {(item.data as MemoryData)?.timestamp 
+                                    ? new Date((item.data as MemoryData).timestamp!).toLocaleDateString(undefined, { dateStyle: 'full' })
                                     : 'Unknown Date'}
                             </p>
                         </div>
@@ -180,16 +190,16 @@ const FilePreviewModal: React.FC<{ item: FolderItem; onClose: () => void }> = ({
                     )}
 
                     {/* Metadata / Tags */}
-                    {(item.data as any)?.tags && (
+                    {(item.data as MemoryData)?.tags && (
                         <div className="mt-8 w-full max-w-2xl">
                              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Tags & Metadata</h4>
                              <div className="flex flex-wrap gap-2">
-                                {(item.data as any).tags.personIds?.map((pid: string) => (
+                                {(item.data as MemoryData).tags?.personIds?.map((pid: string) => (
                                     <span key={pid} className="px-2.5 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
                                         Person: {pid}
                                     </span>
                                 ))}
-                                {(item.data as any).tags.isFamilyMemory && (
+                                {(item.data as MemoryData).tags?.isFamilyMemory && (
                                     <span className="px-2.5 py-1 bg-purple-100 text-purple-800 text-xs rounded-full font-medium">
                                         Family Memory
                                     </span>

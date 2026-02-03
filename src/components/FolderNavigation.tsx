@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { FolderItem } from '../utils/folderStructure';
 import '../styles/FolderNavigation.css';
 
@@ -13,33 +13,24 @@ export const FolderNavigation: React.FC<FolderNavigationProps> = ({
   currentPath,
   onNavigate,
 }) => {
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['/']));
-
-  useEffect(() => {
-    const parts = currentPath.split('/').filter(Boolean);
-    const pathsToExpand = new Set(expandedFolders);
+  const getInitialExpandedFolders = (path: string): Set<string> => {
+    const parts = path.split('/').filter(Boolean);
+    const pathsToExpand = new Set<string>(['/']);
     let currentBuildPath = '';
-    
-    // Ensure root is expanded
-    pathsToExpand.add('/');
     
     parts.forEach(part => {
       currentBuildPath += `/${part}`;
-      // Expand parents of the current selection
-      if (currentBuildPath !== currentPath || parts.length === 1) { // If it's a top level folder, expand root? Logic check.
-         // Actually, if we are AT /Members, we might not want to expand /Members.
-         // But if we are at /Members/Grandma, we definitely want /Members expanded.
-         if (currentPath.startsWith(currentBuildPath) && currentPath !== currentBuildPath) {
-             pathsToExpand.add(currentBuildPath);
-         }
+      if (path.startsWith(currentBuildPath) && path !== currentBuildPath) {
+        pathsToExpand.add(currentBuildPath);
       }
     });
+    
+    return pathsToExpand;
+  };
 
-    // Simple check to avoid infinite loops if set doesn't change
-    if (pathsToExpand.size > expandedFolders.size) {
-        setExpandedFolders(pathsToExpand);
-    }
-  }, [currentPath]);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => 
+    getInitialExpandedFolders(currentPath)
+  );
 
   const toggleExpand = (path: string) => {
     const newExpanded = new Set(expandedFolders);
