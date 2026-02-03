@@ -8,7 +8,6 @@ interface LandingPageProps {
 export default function LandingPage({ onAuthSuccess }: LandingPageProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,154 +20,118 @@ export default function LandingPage({ onAuthSuccess }: LandingPageProps) {
   };
 
   return (
-    <div className="landing-page min-h-screen bg-gradient-to-br from-navy-900 via-navy-800 to-navy-700 flex flex-col items-center justify-center p-4">
-      {/* Header */}
-      <div className="text-center mb-12">
-        <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 tracking-tight">
-          The Murray Family
-        </h1>
-        <p className="text-xl md:text-2xl text-navy-200">
-          Digital Artifact Archive
-        </p>
-      </div>
+    <div className="landing-page min-h-screen bg-white flex flex-col">
+      {/* Header Navigation */}
+      <header className="border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-navy-900 rounded"></div>
+            <span className="text-xl font-semibold text-gray-900">Murray Family Archive</span>
+          </div>
+          <nav className="flex gap-8 text-sm">
+            <a href="#features" className="text-gray-600 hover:text-gray-900">Features</a>
+            <a href="#access" className="text-gray-600 hover:text-gray-900">Access</a>
+          </nav>
+        </div>
+      </header>
 
-      {/* Main Content Grid */}
-      <div className="max-w-5xl w-full grid md:grid-cols-2 gap-8 items-center mb-12">
-        {/* Left: Artifact CLI Feature */}
-        <div className="bg-navy-800 border-2 border-navy-600 rounded-lg p-8">
-          <div className="mb-6">
-            <div className="inline-block bg-gradient-to-br from-blue-400 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-semibold mb-4">
-              🎯 NEW: Artifact CLI
+      {/* Hero Section */}
+      <section className="flex-1 flex items-center">
+        <div className="max-w-7xl mx-auto w-full px-6 py-20">
+          <div className="grid grid-cols-2 gap-16 items-center">
+            {/* Left: Copy */}
+            <div>
+              <h1 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
+                Permanent preservation for family memories
+              </h1>
+              <p className="text-lg text-gray-600 mb-8 leading-relaxed">
+                Professional archival tools for scanning, organizing, and preserving artifacts at native resolution. Built for families who value their history.
+              </p>
+              
+              <div className="space-y-4 mb-12">
+                <div className="flex gap-3 items-start">
+                  <svg className="w-5 h-5 text-navy-900 mt-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-gray-700">4K & native resolution preservation</span>
+                </div>
+                <div className="flex gap-3 items-start">
+                  <svg className="w-5 h-5 text-navy-900 mt-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-gray-700">CLI scanning with batch metadata capture</span>
+                </div>
+                <div className="flex gap-3 items-start">
+                  <svg className="w-5 h-5 text-navy-900 mt-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-gray-700">Secure family-only access & export</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => document.getElementById('access')?.scrollIntoView({ behavior: 'smooth' })}
+                className="bg-navy-900 text-white px-8 py-3 rounded font-semibold hover:bg-navy-800 transition"
+              >
+                Access Collection
+              </button>
+            </div>
+
+            {/* Right: Visual */}
+            <div className="bg-gradient-to-br from-gray-100 to-gray-50 rounded-lg p-12 flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-5xl mb-4">📚</div>
+                <p className="text-gray-600 font-semibold">Family Archive</p>
+              </div>
             </div>
           </div>
-          <h2 className="text-3xl font-bold text-white mb-4">
-            Scan & Archive with CLI
-          </h2>
-          <p className="text-navy-200 mb-6 text-lg">
-            Professional-grade scanning with native resolution preservation. Capture artifacts at original quality—including 4K and ultra-high resolution files.
-          </p>
-          <ul className="space-y-3 mb-6">
-            <li className="flex items-center text-navy-100">
-              <span className="text-blue-400 mr-3 text-xl">✓</span>
-              Native resolution preservation (4K & beyond)
-            </li>
-            <li className="flex items-center text-navy-100">
-              <span className="text-blue-400 mr-3 text-xl">✓</span>
-              Lossless compression options
-            </li>
-            <li className="flex items-center text-navy-100">
-              <span className="text-blue-400 mr-3 text-xl">✓</span>
-              Batch metadata & format support
-            </li>
-            <li className="flex items-center text-navy-100">
-              <span className="text-blue-400 mr-3 text-xl">✓</span>
-              Permanent archival-grade storage
-            </li>
-          </ul>
-          <button className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition">
-            Download Artifact CLI
-          </button>
         </div>
+      </section>
 
-        {/* Right: Gallery Preview */}
-        <div className="bg-navy-800 border-2 border-navy-600 rounded-lg p-8">
-          <div className="mb-6">
-            <div className="inline-block bg-gradient-to-br from-emerald-400 to-emerald-600 text-white px-4 py-2 rounded-full text-sm font-semibold mb-4">
-              📚 EXPLORE: Memory Gallery
-            </div>
-          </div>
-          <h2 className="text-3xl font-bold text-white mb-4">
-            View Family Artifacts
-          </h2>
-          <p className="text-navy-200 mb-6 text-lg">
-            Browse the complete collection of family memories. Browse photographs, documents, and stories organized chronologically or by family member.
-          </p>
-          <ul className="space-y-3 mb-6">
-            <li className="flex items-center text-navy-100">
-              <span className="text-emerald-400 mr-3 text-xl">✓</span>
-              Full-resolution image viewing
-            </li>
-            <li className="flex items-center text-navy-100">
-              <span className="text-emerald-400 mr-3 text-xl">✓</span>
-              Timeline & gallery views
-            </li>
-            <li className="flex items-center text-navy-100">
-              <span className="text-emerald-400 mr-3 text-xl">✓</span>
-              Export as memory books (PDF)
-            </li>
-            <li className="flex items-center text-navy-100">
-              <span className="text-emerald-400 mr-3 text-xl">✓</span>
-              Secure family access only
-            </li>
-          </ul>
-          <button
-            onClick={() => document.getElementById('password-form')?.scrollIntoView({ behavior: 'smooth' })}
-            className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold py-3 px-6 rounded-lg transition"
-          >
-            Enter Gallery
-          </button>
-        </div>
-      </div>
-
-      {/* Password Authentication */}
-      <div id="password-form" className="w-full max-w-md">
-        <div className="bg-navy-800 border-2 border-navy-500 rounded-lg p-8 shadow-2xl">
-          <h3 className="text-2xl font-bold text-white mb-6 text-center">
-            Family Access
-          </h3>
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-navy-100 text-sm font-semibold mb-2">
-                Enter password to access
-              </label>
-              <div className="relative">
+      {/* Access Section */}
+      <section id="access" className="bg-gray-50 border-t border-gray-200 py-20">
+        <div className="max-w-2xl mx-auto px-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-12 shadow-sm">
+            <h2 className="text-2xl font-bold text-gray-900 mb-8">Enter your access code</h2>
+            
+            <form onSubmit={handleSubmit}>
+              <div className="mb-6">
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
                     if (error) setError('');
                   }}
-                  placeholder="••••••••••••••••"
-                  className="w-full px-4 py-3 bg-navy-700 text-white border-2 border-navy-600 rounded-lg focus:border-blue-500 focus:outline-none placeholder-navy-400"
+                  placeholder="Enter access code"
+                  className="w-full px-4 py-3 border border-gray-300 rounded font-mono text-lg focus:border-navy-900 focus:outline-none focus:ring-1 focus:ring-navy-900"
                   autoFocus
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-3.5 text-navy-300 hover:text-white"
-                >
-                  {showPassword ? '👁️' : '👁️‍🗨️'}
-                </button>
               </div>
-            </div>
 
-            {error && (
-              <div className="mb-4 p-3 bg-red-900/30 border border-red-600 rounded text-red-300 text-sm">
-                {error}
-              </div>
-            )}
+              {error && (
+                <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                  {error}
+                </div>
+              )}
 
-            <button
-              type="submit"
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition"
-            >
-              Access Collection
-            </button>
-          </form>
-
-          <div className="mt-6 pt-6 border-t border-navy-700">
-            <p className="text-navy-300 text-center text-xs">
-              🔐 Secure family archive
-            </p>
+              <button
+                type="submit"
+                className="w-full bg-navy-900 text-white px-4 py-3 rounded font-semibold hover:bg-navy-800 transition"
+              >
+                Access
+              </button>
+            </form>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Footer Info */}
-      <div className="mt-12 text-center text-navy-300 text-sm">
-        <p>© 2026 Murray Family Archive. All memories preserved.</p>
-      </div>
+      {/* Footer */}
+      <footer className="border-t border-gray-200 bg-gray-50 py-6">
+        <div className="max-w-7xl mx-auto px-6 text-center text-gray-600 text-sm">
+          <p>© 2026 Murray Family Archive. Permanent preservation.</p>
+        </div>
+      </footer>
     </div>
   );
 }
