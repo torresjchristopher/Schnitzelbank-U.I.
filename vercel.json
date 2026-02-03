@@ -2,8 +2,5 @@
   "buildCommand": "npm run build",
   "installCommand": "npm ci",
   "outputDirectory": "dist",
-  "framework": "vite",
-  "env": {
-    "VITE_APP_VERSION": "@jridgewell/vite-plugin-vue-inspector@1.0.0"
-  }
+  "framework": "vite"
 }
