@@ -4,38 +4,6 @@ import type { MemoryTree, Memory, MemoryType, Person } from '../types';
 
 const FAMILY_ROOT_ID = 'FAMILY_ROOT';
 
-interface PersonData {
-  name?: string | { name?: string };
-  [key: string]: unknown;
-}
-
-interface MemoryData {
-  fileName?: string;
-  name?: string;
-  title?: string;
-  description?: string;
-  downloadUrl?: string;
-  url?: string;
-  fileUrl?: string;
-  mediaUrl?: string;
-  storageUrl?: string;
-  location?: string;
-  uploadedAt?: string | number | Date;
-  timestamp?: string | number | Date;
-  anchoredAt?: string | number | Date;
-  [key: string]: unknown;
-}
-
-function extractPersonName(raw: unknown, fallbackId: string): string {
-  if (typeof raw === 'string') return raw;
-  if (raw && typeof raw === 'object') {
-    const n = (raw as PersonData).name;
-    if (typeof n === 'string') return n;
-    if (n && typeof n === 'object' && typeof (n as PersonData).name === 'string') return (n as PersonData).name as string;
-  }
-  return fallbackId;
-}
-
 function inferMemoryType(fileName: string): MemoryType {
   const lower = (fileName || '').toLowerCase();
   if (lower.match(/\.(jpg|jpeg|png|gif|bmp|webp|heic)$/)) return 'image';
@@ -46,87 +14,56 @@ function inferMemoryType(fileName: string): MemoryType {
   return 'document';
 }
 
-function toDate(value: unknown): Date {
-  if (!value) return new Date();
-  if (value instanceof Date) return value;
-  if (typeof value === 'string' || typeof value === 'number') {
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? new Date() : d;
-  }
-  if (value && typeof value === 'object' && typeof (value as Record<string, unknown>).toDate === 'function') {
-    try {
-      const d = ((value as unknown) as { toDate(): unknown }).toDate();
-      return d instanceof Date ? d : new Date();
-    } catch {
-      return new Date();
-    }
-  }
-  return new Date();
-}
-
-/**
- * Read-only subscription that projects the Firebase tree into the UI model.
- * Canonical source: trees/{protocolKey}/people/{personId}/memories/{memoryId}
- */
 export function subscribeToMemoryTree(
   protocolKey: string,
   onUpdate: (partial: Partial<MemoryTree>) => void,
   onError?: (error: any) => void
 ): Unsubscribe {
+  console.log(`[FIREBASE] Starting subscription for: ${protocolKey}`);
+  
   let memoryUnsubs: Unsubscribe[] = [];
   const memoriesByPerson = new Map<string, Memory[]>();
 
+  // 1. Subscribe to People in the tree
   const peopleUnsub = onSnapshot(collection(db, 'trees', protocolKey, 'people'), (peopleSnap) => {
-    const peopleFromDb = peopleSnap.docs.map((doc) => {
-      const data = doc.data() as PersonData;
-      return {
-        id: doc.id,
-        name: extractPersonName(data?.name, doc.id),
-        ...data,
-      } as Person;
-    });
+    console.log(`[FIREBASE] People found: ${peopleSnap.size}`);
+    
+    const people = peopleSnap.docs.map((doc) => ({
+      id: doc.id,
+      name: doc.data().name || doc.id,
+      ...doc.data(),
+    })) as Person[];
 
-    const people: Person[] = [
-      { id: FAMILY_ROOT_ID, name: 'Murray Family' },
-      ...peopleFromDb.filter((p) => p.id !== FAMILY_ROOT_ID),
-    ];
+    onUpdate({ people: [{ id: FAMILY_ROOT_ID, name: 'Murray Archive' }, ...people] });
 
-    onUpdate({ people });
-
-    // Rebuild memory listeners whenever the people list changes.
+    // Cleanup old memory listeners
     memoryUnsubs.forEach((u) => u());
     memoryUnsubs = [];
-    memoriesByPerson.clear();
 
-    people.forEach((person) => {
+    // 2. Subscribe to Memories for each person
+    const allSubjects = [{ id: FAMILY_ROOT_ID }, ...people];
+    allSubjects.forEach((person) => {
       const unsub = onSnapshot(
         collection(db, 'trees', protocolKey, 'people', person.id, 'memories'),
         (memSnap) => {
+          console.log(`[FIREBASE] Memories for ${person.id}: ${memSnap.size}`);
+          
           const memories: Memory[] = memSnap.docs.map((m) => {
-            const data = m.data() as MemoryData;
-
-            const fileName: string = data?.fileName || data?.name || data?.title || 'Artifact';
-            const description: string = data?.description || '';
-            const fileUrl: string =
-              data?.downloadUrl || data?.url || data?.fileUrl || data?.mediaUrl || data?.storageUrl || '';
-
-            const details = fileUrl || description || '';
-            const timestamp = toDate(data?.uploadedAt || data?.timestamp || data?.anchoredAt);
-
+            const data = m.data();
+            const fileUrl = data.downloadUrl || data.url || data.fileUrl || '';
+            
             return {
               id: m.id,
-              name: fileName,
-              description: details,
-              type: inferMemoryType(fileName),
-              content: `${fileName}|DELIM|${details}`,
+              name: data.name || data.fileName || 'Artifact',
+              description: data.description || '',
+              content: data.content || '',
+              location: data.location || '',
+              type: inferMemoryType(data.name || data.fileName || ''),
               photoUrl: fileUrl,
-              location: data?.location || '',
-              date: timestamp.toISOString(),
-              timestamp,
-              tags: {
+              date: data.date || new Date().toISOString(),
+              tags: { 
                 personIds: [person.id],
-                isFamilyMemory: person.id === FAMILY_ROOT_ID,
-                customTags: (data?.tags && Array.isArray(data.tags)) ? data.tags : []
+                isFamilyMemory: person.id === FAMILY_ROOT_ID 
               },
             };
           });
@@ -135,18 +72,11 @@ export function subscribeToMemoryTree(
           const combined = Array.from(memoriesByPerson.values()).flat();
           onUpdate({ memories: combined });
         },
-        (err) => {
-          console.error(`Error subscribing to memories for ${person.id}:`, err);
-          if (onError) onError(err);
-        }
+        (err) => onError && onError(err)
       );
-
       memoryUnsubs.push(unsub);
     });
-  }, (err) => {
-    console.error('Error subscribing to people:', err);
-    if (onError) onError(err);
-  });
+  }, (err) => onError && onError(err));
 
   return () => {
     peopleUnsub();
