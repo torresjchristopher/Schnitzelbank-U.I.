@@ -2,18 +2,20 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// Hardcoded for Vercel synchronization verification
+// Using Vercel Environment Variables for production synchronization
 const firebaseConfig = {
-  apiKey: "AIzaSyB1kn7TwyUeQRLErHfM2KSD8RPi7tJarH8",
-  authDomain: "schnitzelbank-a.firebaseapp.com",
-  projectId: "schnitzelbank-a",
-  storageBucket: "schnitzelbank-a.firebasestorage.app",
-  messagingSenderId: "465517915092",
-  appId: "1:465517915092:web:66332a394ee8655eb9c441",
-  measurementId: "G-TNRYLNLEYT"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);
-// Connecting specifically to the 'schnitzelbank' database used by the Artifact CLI
+
+// Connecting to the 'schnitzelbank' named database required for CLI parity
+// Note: If you are using the default database, this should be (default) or omitted.
 export const db = getFirestore(app, "schnitzelbank");
 export const storage = getStorage(app);

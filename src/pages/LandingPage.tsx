@@ -11,6 +11,14 @@ interface LandingPageProps {
 export default function LandingPage({ onUnlock, itemCount = 0, error = null }: LandingPageProps) {
   const [password, setPassword] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isTimedOut, setIsTimedOut] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (itemCount === 0 && !error) setIsTimedOut(true);
+    }, 30000); // 30 second timeout
+    return () => clearTimeout(timer);
+  }, [itemCount, error]);
 
   useEffect(() => {
     if (password === 'Jackson_Heights') {
@@ -63,17 +71,18 @@ export default function LandingPage({ onUnlock, itemCount = 0, error = null }: L
         className="absolute bottom-10 flex flex-col items-center gap-2 text-white text-[8px] uppercase tracking-[0.4em] font-sans font-black text-center"
       >
         <div className="flex items-center gap-2">
-          {error ? (
-            <div className="flex items-center gap-1.5 text-red-900/60">
-              <CloudOff className="w-2 h-2" /> {error}
+          {error || isTimedOut ? (
+            <div className="flex items-center gap-1.5 text-red-900/60 font-bold uppercase tracking-widest">
+              <CloudOff className="w-2 h-2" /> 
+              {error || 'Protocol Timeout (Verify Database Configuration)'}
             </div>
           ) : itemCount > 0 ? (
-            <div className="flex items-center gap-1.5 text-emerald-500/40">
+            <div className="flex items-center gap-1.5 text-emerald-500/40 font-bold uppercase tracking-widest">
               <span className="w-1 h-1 rounded-full bg-current animate-pulse"></span>
               {itemCount} Fragments Active
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 text-white/10">
+            <div className="flex items-center gap-1.5 text-white/10 font-bold uppercase tracking-widest">
               <Loader2 className="w-2 h-2 animate-spin" />
               Scanning Protocol...
             </div>
