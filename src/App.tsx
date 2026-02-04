@@ -14,11 +14,14 @@ const MURRAY_PROTOCOL_KEY = "MURRAY_LEGACY_2026";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [memoryTree, setMemoryTree] = useState<MemoryTree>({
-    protocolKey: MURRAY_PROTOCOL_KEY,
-    familyName: 'The Murray Family',
-    people: [],
-    memories: [],
+  const [memoryTree, setMemoryTree] = useState<MemoryTree>(() => {
+    const cached = localStorage.getItem('schnitzel_snapshot');
+    return cached ? JSON.parse(cached) : {
+      protocolKey: MURRAY_PROTOCOL_KEY,
+      familyName: 'The Murray Family',
+      people: [],
+      memories: [],
+    };
   });
 
   useEffect(() => {
@@ -27,12 +30,16 @@ function App() {
     PersistenceService.getInstance();
 
     const unsub = subscribeToMemoryTree(MURRAY_PROTOCOL_KEY, (partial) => {
-      setMemoryTree((prev) => ({
-        ...prev,
-        ...partial,
-        protocolKey: MURRAY_PROTOCOL_KEY,
-        familyName: 'The Murray Family',
-      }));
+      setMemoryTree((prev) => {
+        const next = {
+          ...prev,
+          ...partial,
+          protocolKey: MURRAY_PROTOCOL_KEY,
+          familyName: 'The Murray Family',
+        };
+        localStorage.setItem('schnitzel_snapshot', JSON.stringify(next));
+        return next;
+      });
     });
 
     return () => unsub();

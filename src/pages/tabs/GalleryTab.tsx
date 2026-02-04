@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -17,6 +17,8 @@ interface GalleryTabProps {
 
 export default function GalleryTab({ tree, onExport }: GalleryTabProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const filmstripRef = useRef<HTMLDivElement>(null);
+  const activeThumbRef = useRef<HTMLDivElement>(null);
   const isSidebarOpen = true;
 
   const memories = tree.memories;
@@ -25,10 +27,37 @@ export default function GalleryTab({ tree, onExport }: GalleryTabProps) {
   const next = () => setCurrentIndex((prev) => (prev + 1) % memories.length);
   const prev = () => setCurrentIndex((prev) => (prev - 1 + memories.length) % memories.length);
 
+  // Prefetch logic
+  useEffect(() => {
+    const prefetchIndices = [
+      (currentIndex + 1) % memories.length,
+      (currentIndex - 1 + memories.length) % memories.length
+    ];
+    prefetchIndices.forEach(idx => {
+      const img = new Image();
+      if (memories[idx]?.photoUrl) img.src = memories[idx].photoUrl;
+    });
+  }, [currentIndex, memories]);
+
+  // Filmstrip auto-scroll
+  useEffect(() => {
+    if (activeThumbRef.current) {
+      activeThumbRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      });
+    }
+  }, [currentIndex]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') prev();
       else if (e.key === 'ArrowRight') next();
+      else if (e.key === 'Home') setCurrentIndex(0);
+      else if (e.key === 'End') setCurrentIndex(memories.length - 1);
+      else if (e.key === 'PageDown') setCurrentIndex(prev => Math.min(memories.length - 1, prev + 5));
+      else if (e.key === 'PageUp') setCurrentIndex(prev => Math.max(0, prev - 5));
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -48,13 +77,14 @@ export default function GalleryTab({ tree, onExport }: GalleryTabProps) {
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.02 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
             className="relative z-10 max-w-5xl w-full h-full flex items-center justify-center shadow-2xl"
           >
             {currentMemory.photoUrl ? (
               <img
                 src={currentMemory.photoUrl}
                 alt={currentMemory.name}
+                loading="eager"
                 className="max-w-full max-h-full object-contain rounded-sm shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-[#c5a059]/20"
               />
             ) : (
@@ -79,16 +109,20 @@ export default function GalleryTab({ tree, onExport }: GalleryTabProps) {
         </div>
 
         {/* Bottom Filmstrip Preview */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3 px-6 py-3 bg-[#0a1120]/90 backdrop-blur-xl border-t border-[#c5a059]/20 rounded-t-2xl overflow-hidden max-w-[80%] shadow-2xl">
-          {memories.slice(Math.max(0, currentIndex - 3), currentIndex + 4).map((m) => (
+        <div 
+          ref={filmstripRef}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3 px-6 py-3 bg-[#0a1120]/90 backdrop-blur-xl border-t border-[#c5a059]/20 rounded-t-2xl overflow-x-auto max-w-[80%] shadow-2xl no-scrollbar"
+        >
+          {memories.map((m, idx) => (
             <div 
               key={m.id}
-              onClick={() => setCurrentIndex(memories.indexOf(m))}
-              className={`w-16 h-12 rounded-sm cursor-pointer transition-all border ${
-                m.id === currentMemory.id ? 'border-[#c5a059] scale-105 opacity-100' : 'border-transparent opacity-40 hover:opacity-100'
+              ref={idx === currentIndex ? activeThumbRef : null}
+              onClick={() => setCurrentIndex(idx)}
+              className={`w-16 h-12 shrink-0 rounded-sm cursor-pointer transition-all border ${
+                idx === currentIndex ? 'border-[#c5a059] scale-105 opacity-100' : 'border-transparent opacity-40 hover:opacity-100'
               } overflow-hidden`}
             >
-              <img src={m.photoUrl} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all" />
+              <img src={m.photoUrl} loading="lazy" className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all" />
             </div>
           ))}
         </div>
