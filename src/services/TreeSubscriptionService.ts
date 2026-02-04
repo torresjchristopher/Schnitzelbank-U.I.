@@ -22,12 +22,35 @@ export function subscribeToMemoryTree(
   console.log(`[FIREBASE] Starting subscription for: ${protocolKey}`);
   
   let memoryUnsubs: Unsubscribe[] = [];
-  const memoriesByPerson = new Map<string, Memory[]>();
+  const memoriesBySource = new Map<string, Memory[]>();
 
-  // 1. Subscribe to People in the tree
+  const updateCombinedMemories = () => {
+    const combined = Array.from(memoriesBySource.values()).flat();
+    onUpdate({ memories: combined });
+  };
+
+  // 1. Subscribe to Global Memories (Directly under the tree)
+  const globalUnsub = onSnapshot(collection(db, 'trees', protocolKey, 'memories'), (snap) => {
+    const memories = snap.docs.map(m => {
+      const d = m.data();
+      return {
+        id: m.id,
+        name: d.name || d.fileName || 'Artifact',
+        description: d.description || '',
+        content: d.content || '',
+        location: d.location || '',
+        type: inferMemoryType(d.name || d.fileName || ''),
+        photoUrl: d.downloadUrl || d.url || d.fileUrl || '',
+        date: d.date || new Date().toISOString(),
+        tags: { personIds: [FAMILY_ROOT_ID], isFamilyMemory: true },
+      } as Memory;
+    });
+    memoriesBySource.set('GLOBAL', memories);
+    updateCombinedMemories();
+  }, (err) => onError && onError(err));
+
+  // 2. Subscribe to People
   const peopleUnsub = onSnapshot(collection(db, 'trees', protocolKey, 'people'), (peopleSnap) => {
-    console.log(`[FIREBASE] People found: ${peopleSnap.size}`);
-    
     const people = peopleSnap.docs.map((doc) => ({
       id: doc.id,
       name: doc.data().name || doc.id,
@@ -36,41 +59,30 @@ export function subscribeToMemoryTree(
 
     onUpdate({ people: [{ id: FAMILY_ROOT_ID, name: 'Murray Archive' }, ...people] });
 
-    // Cleanup old memory listeners
+    // Rebuild person-specific memory listeners
     memoryUnsubs.forEach((u) => u());
     memoryUnsubs = [];
 
-    // 2. Subscribe to Memories for each person
-    const allSubjects = [{ id: FAMILY_ROOT_ID }, ...people];
-    allSubjects.forEach((person) => {
+    people.forEach((person) => {
       const unsub = onSnapshot(
         collection(db, 'trees', protocolKey, 'people', person.id, 'memories'),
         (memSnap) => {
-          console.log(`[FIREBASE] Memories for ${person.id}: ${memSnap.size}`);
-          
-          const memories: Memory[] = memSnap.docs.map((m) => {
-            const data = m.data();
-            const fileUrl = data.downloadUrl || data.url || data.fileUrl || '';
-            
+          const memories = memSnap.docs.map((m) => {
+            const d = m.data();
             return {
               id: m.id,
-              name: data.name || data.fileName || 'Artifact',
-              description: data.description || '',
-              content: data.content || '',
-              location: data.location || '',
-              type: inferMemoryType(data.name || data.fileName || ''),
-              photoUrl: fileUrl,
-              date: data.date || new Date().toISOString(),
-              tags: { 
-                personIds: [person.id],
-                isFamilyMemory: person.id === FAMILY_ROOT_ID 
-              },
-            };
+              name: d.name || d.fileName || 'Artifact',
+              description: d.description || '',
+              content: d.content || '',
+              location: d.location || '',
+              type: inferMemoryType(d.name || d.fileName || ''),
+              photoUrl: d.downloadUrl || d.url || d.fileUrl || '',
+              date: d.date || new Date().toISOString(),
+              tags: { personIds: [person.id], isFamilyMemory: false },
+            } as Memory;
           });
-
-          memoriesByPerson.set(person.id, memories);
-          const combined = Array.from(memoriesByPerson.values()).flat();
-          onUpdate({ memories: combined });
+          memoriesBySource.set(person.id, memories);
+          updateCombinedMemories();
         },
         (err) => onError && onError(err)
       );
@@ -79,6 +91,7 @@ export function subscribeToMemoryTree(
   }, (err) => onError && onError(err));
 
   return () => {
+    globalUnsub();
     peopleUnsub();
     memoryUnsubs.forEach((u) => u());
   };

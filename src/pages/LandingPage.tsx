@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Lock, CloudOff, Loader2 } from 'lucide-react';
+import { Lock, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface LandingPageProps {
@@ -11,14 +11,6 @@ interface LandingPageProps {
 export default function LandingPage({ onUnlock, itemCount = 0, error = null }: LandingPageProps) {
   const [password, setPassword] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [isTimedOut, setIsTimedOut] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (itemCount === 0 && !error) setIsTimedOut(true);
-    }, 30000); // 30 second timeout
-    return () => clearTimeout(timer);
-  }, [itemCount, error]);
 
   useEffect(() => {
     if (password === 'Jackson_Heights') {
@@ -64,32 +56,36 @@ export default function LandingPage({ onUnlock, itemCount = 0, error = null }: L
         <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-[0.5px] bg-white/20 transition-all duration-1000 ${isTyping ? 'w-full opacity-40' : 'w-0 opacity-0'}`}></div>
       </motion.div>
 
-      {/* Subtle Sync Bar */}
+      {/* Diagnostic Status Bar */}
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.4 }}
-        transition={{ delay: 2, duration: 2 }}
-        className="absolute bottom-10 flex flex-col items-center gap-2 text-white text-[8px] uppercase tracking-[0.4em] font-sans font-black text-center"
+        className="absolute bottom-10 flex flex-col items-center gap-2 text-white text-[8px] uppercase tracking-[0.4em] font-sans font-black text-center px-6"
       >
-        <div className="flex items-center gap-2">
-          {error || isTimedOut ? (
-            <div className="flex items-center gap-1.5 text-red-900/60 font-bold uppercase tracking-widest">
-              <CloudOff className="w-2 h-2" /> 
-              {error || 'Protocol Timeout (Verify Database Configuration)'}
+        {error ? (
+          <div className="flex flex-col items-center gap-2 text-red-500/80 bg-red-500/5 p-4 rounded-lg border border-red-500/10">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-3 h-3" />
+              <span>Diagnostic Warning</span>
             </div>
-          ) : itemCount > 0 ? (
-            <div className="flex items-center gap-1.5 text-emerald-500/40 font-bold uppercase tracking-widest">
-              <span className="w-1 h-1 rounded-full bg-current animate-pulse"></span>
-              {itemCount} Fragments Active
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 text-white/10 font-bold uppercase tracking-widest">
-              <Loader2 className="w-2 h-2 animate-spin" />
-              Scanning Protocol...
-            </div>
-          )}
-        </div>
-        <div className="text-white/20 uppercase tracking-[0.3em]">
+            <div className="font-mono text-[7px] max-w-xs">{error}</div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            {itemCount > 0 ? (
+              <div className="flex items-center gap-1.5 text-emerald-500/40">
+                <span className="w-1 h-1 rounded-full bg-current animate-pulse"></span>
+                {itemCount} Fragments Active
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-white/10">
+                <Loader2 className="w-2 h-2 animate-spin" />
+                Scanning Protocol...
+              </div>
+            )}
+          </div>
+        )}
+        <div className="text-white/10 uppercase tracking-[0.3em]">
           Murray Protocol // DB: schnitzelbank // Obsidian Edition
         </div>
       </motion.div>
