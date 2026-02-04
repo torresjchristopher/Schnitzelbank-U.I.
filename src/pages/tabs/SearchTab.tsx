@@ -1,15 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   Search, 
   User, 
   Calendar, 
-  Download, 
-  Filter, 
   ArrowUpDown,
-  FileArchive,
-  Maximize2
+  FileArchive
 } from 'lucide-react';
-import type { MemoryTree, Memory } from '../../types';
+import type { MemoryTree } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SearchTabProps {
@@ -135,7 +132,7 @@ export default function SearchTab({ tree, onExport }: SearchTabProps) {
       {/* Results Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <AnimatePresence mode='popLayout'>
-          {filteredResults.map((memory, i) => (
+          {filteredResults.map((memory) => (
             <motion.div
               key={memory.id}
               layout

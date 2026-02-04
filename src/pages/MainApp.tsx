@@ -43,7 +43,7 @@ export default function MainApp({ tree, onExport }: MainAppProps) {
       case 'people':
         return <PeopleTab tree={tree} />;
       case 'search':
-        return <SearchTab tree={tree} />;
+        return <SearchTab tree={tree} onExport={onExport} />;
       case 'export':
         return <ExportTab tree={tree} onExport={onExport} />;
       case 'privacy':

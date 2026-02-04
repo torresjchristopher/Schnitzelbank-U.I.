@@ -7,8 +7,7 @@ import {
   Calendar, 
   User, 
   Info,
-  Maximize2,
-  Filter
+  Maximize2
 } from 'lucide-react';
 import type { MemoryTree, Memory } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,7 +17,7 @@ interface GalleryTabProps {
   onExport: (format: 'ZIP' | 'PDF') => void;
 }
 
-export default function GalleryTab({ tree, onExport }: GalleryTabProps) {
+export default function GalleryTab({ tree }: GalleryTabProps) {
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
   const [activeFilter, setActiveTab] = useState<'all' | 'image' | 'video' | 'document'>('all');
 

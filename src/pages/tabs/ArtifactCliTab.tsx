@@ -1,16 +1,12 @@
-import React from 'react';
 import { 
-  Download, 
   Terminal, 
   Cpu, 
   HardDrive, 
   ShieldCheck, 
   Zap, 
   Code,
-  ArrowRight,
   Monitor
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 export default function ArtifactCliTab() {
   const specs = [
