@@ -8,6 +8,21 @@ export default {
   theme: {
     extend: {
       colors: {
+        navy: {
+          950: '#020617',
+          900: '#0a1120',
+          800: '#1e293b',
+          700: '#334155',
+        },
+        gold: {
+          400: '#fbbf24',
+          500: '#c5a059',
+          600: '#b48a3e',
+        },
+        cream: {
+          50: '#f8fafc',
+          100: '#f1f5f9',
+        },
         background: '#000000',
         foreground: '#ffffff',
         primary: '#FFC700',

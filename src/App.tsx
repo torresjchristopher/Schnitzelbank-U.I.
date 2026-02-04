@@ -8,10 +8,12 @@ import { MemoryBookPdfService } from './services/MemoryBookPdfService';
 import { subscribeToMemoryTree } from './services/TreeSubscriptionService';
 import LandingPage from './pages/LandingPage';
 import MainApp from './pages/MainApp';
+import { LockScreen } from './components/LockScreen';
 
 const MURRAY_PROTOCOL_KEY = "MURRAY_LEGACY_2026";
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [memoryTree, setMemoryTree] = useState<MemoryTree>({
     protocolKey: MURRAY_PROTOCOL_KEY,
     familyName: 'The Murray Family',
@@ -20,6 +22,8 @@ function App() {
   });
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     PersistenceService.getInstance();
 
     const unsub = subscribeToMemoryTree(MURRAY_PROTOCOL_KEY, (partial) => {
@@ -32,7 +36,7 @@ function App() {
     });
 
     return () => unsub();
-  }, []);
+  }, [isAuthenticated]);
 
   const handleExport = async (format: 'ZIP' | 'PDF') => {
     try {
@@ -58,6 +62,10 @@ function App() {
       alert('Export failed. Please try again.');
     }
   };
+
+  if (!isAuthenticated) {
+    return <LockScreen onUnlock={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <BrowserRouter>

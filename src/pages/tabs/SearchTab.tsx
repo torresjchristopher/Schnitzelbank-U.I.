@@ -1,14 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   Search, 
   User, 
   Calendar, 
-  ArrowUpDown,
-  FileArchive,
   Download
 } from 'lucide-react';
 import type { MemoryTree } from '../../types';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 interface SearchTabProps {
   tree: MemoryTree;

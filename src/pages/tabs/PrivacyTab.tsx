@@ -1,4 +1,4 @@
-import { Shield, Lock, Eye, Database, Server, Key, Info } from 'lucide-react';
+import { Shield, Lock, Eye, Database, Server, Key } from 'lucide-react';
 
 export default function PrivacyTab() {
   return (
