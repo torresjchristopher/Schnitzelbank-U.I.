@@ -71,6 +71,21 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
 
   const currentMemory = filteredMemories[currentIndex];
 
+  // Autoplay cycle (10s when idle)
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (!showUi && viewMode === 'theatre' && filteredMemories.length > 1) {
+      interval = setInterval(() => {
+        setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
+      }, 10000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [showUi, viewMode, filteredMemories.length]);
+
   // Reset flip when changing image
   useEffect(() => {
     setIsFlipped(false);
