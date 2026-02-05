@@ -20,7 +20,7 @@ export function Header({ familyName }: HeaderProps) {
           </div>
           <div className="flex flex-col items-start">
             <span className="text-2xl font-serif font-bold text-[#f8fafc] tracking-wide uppercase">{familyName}</span>
-            <span className="text-[10px] font-sans font-bold text-[#c5a059] uppercase tracking-[0.3em] -mt-1">Institutional Archive</span>
+            <span className="text-[10px] font-sans font-bold text-[#c5a059] uppercase tracking-[0.3em] -mt-1">The Murray Family</span>
           </div>
         </button>
         

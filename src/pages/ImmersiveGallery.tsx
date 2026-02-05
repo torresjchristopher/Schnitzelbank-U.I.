@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Download, Terminal, Search, ChevronLeft, ChevronRight, 
-  X, Grid, Maximize2
+  X, Grid, Maximize2, Lock
 } from 'lucide-react';
 import type { MemoryTree } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -180,6 +180,16 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
             </div>
 
             <div className="pointer-events-auto flex gap-4">
+              <button 
+                onClick={() => {
+                  localStorage.removeItem('schnitzel_session');
+                  window.location.reload();
+                }}
+                className="p-3.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 transition-all"
+                title="Lock Archive"
+              >
+                <Lock className="w-4 h-4 text-white/40" />
+              </button>
               <button onClick={() => {
                 if (viewMode === 'theatre') { setViewMode('grid'); setGridDensity(2); }
                 else if (gridDensity === 2) setGridDensity(8);
@@ -189,26 +199,26 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
                 {viewMode === 'grid' ? <Maximize2 className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
               </button>
               <button onClick={() => setShowCli(true)} className="p-3.5 bg-white/5 rounded-full border border-white/5"><Terminal className="w-4 h-4" /></button>
-              <button onClick={() => onExport('ZIP')} className="p-3.5 bg-white text-black rounded-full"><Download className="w-4 h-4" /></button>
+              <button onClick={() => onExport('ZIP')} className="p-3.5 bg-white text-black rounded-full shadow-2xl"><Download className="w-4 h-4" /></button>
             </div>
           </motion.header>
 
           {viewMode === 'theatre' && currentMemory && (
             <div className="flex-1 relative flex items-center justify-center overflow-hidden">
               <AnimatePresence mode="wait">
-                <motion.div key={currentMemory.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: transitionDuration }} className="relative z-10 w-full h-full flex items-center justify-center p-12 md:p-24">
-                  <div className="relative flex items-center justify-center w-full h-full max-h-[85vh]">
-                    <img src={currentMemory.photoUrl} className="max-w-[90vw] max-h-full object-contain shadow-2xl rounded-sm border border-white/5" />
+                <motion.div key={currentMemory.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: transitionDuration }} className="relative z-10 w-full h-full flex items-center justify-center p-20 md:p-32">
+                  <div className="relative flex items-center justify-center w-full h-full max-h-[70vh]">
+                    <img src={currentMemory.photoUrl} className="max-w-[80vw] max-h-full object-contain shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-sm border border-white/5" />
                     
-                    <motion.div animate={{ y: showUi ? 0 : 100, opacity: showUi ? 1 : 0 }} className="absolute -bottom-12 left-1/2 -translate-x-1/2 pointer-events-auto z-20">
-                      <div onClick={() => setIsFlipped(!isFlipped)} className="bg-black/80 backdrop-blur-3xl border border-white/10 px-8 py-6 rounded-sm text-center cursor-pointer min-w-[320px] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                    <motion.div animate={{ y: showUi ? 0 : 100, opacity: showUi ? 1 : 0 }} className="absolute -bottom-20 left-1/2 -translate-x-1/2 pointer-events-auto z-20">
+                      <div onClick={() => setIsFlipped(!isFlipped)} className="bg-black/90 backdrop-blur-3xl border border-white/10 px-10 py-8 rounded-sm text-center cursor-pointer min-w-[360px] shadow-[0_30px_60px_rgba(0,0,0,0.8)]">
                         {!isFlipped ? (
                           <>
-                            <div className="text-[8px] font-black text-white/30 uppercase tracking-[0.4em] mb-2 italic">Ref. {currentIndex + 1} // ERA {new Date(currentMemory.date || Date.now()).getFullYear()}</div>
-                            <div className="text-xl font-serif italic text-white tracking-widest truncate max-w-[400px]">{currentMemory.name}</div>
+                            <div className="text-[9px] font-black text-white/20 uppercase tracking-[0.5em] mb-3 italic">Record {currentIndex + 1} // {new Date(currentMemory.date || Date.now()).getFullYear()}</div>
+                            <div className="text-2xl font-serif italic text-white tracking-widest truncate max-w-[450px]">{currentMemory.name}</div>
                           </>
                         ) : (
-                          <p className="text-xs font-serif italic text-white/80 leading-relaxed max-w-[400px]">{currentMemory.description || "No specific metadata note available."}</p>
+                          <p className="text-sm font-serif italic text-white/80 leading-relaxed max-w-[450px]">{currentMemory.description || "No specific metadata note available."}</p>
                         )}
                       </div>
                     </motion.div>
