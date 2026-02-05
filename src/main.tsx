@@ -4,7 +4,7 @@ import './index.css'
 import App from './App.tsx'
 
 // Emergency Blank Screen Protector
-window.onerror = function(msg, url, lineNo, columnNo, error) {
+window.onerror = function(msg, _url, _lineNo, _columnNo, error) {
   console.error('Fatal App Error:', msg, error);
   // If the error happens during initial chunk load, the app is blank.
   // We can't do much, but we can try to clear the path.
