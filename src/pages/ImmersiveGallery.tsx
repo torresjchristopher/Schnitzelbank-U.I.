@@ -165,7 +165,7 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
               <div className="w-8 h-8 bg-white rounded-sm flex items-center justify-center font-serif font-black text-black text-lg italic">S</div>
               <div className="flex items-baseline gap-3">
                 <h1 className="text-lg font-serif font-bold text-white tracking-tighter uppercase italic leading-none">Schnitzel Bank</h1>
-                <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.4em] leading-none">Institutional</span>
+                <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.4em] leading-none">The Murray Family</span>
               </div>
             </div>
 
