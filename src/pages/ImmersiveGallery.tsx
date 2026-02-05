@@ -10,8 +10,7 @@ import {
   Maximize2,
   CheckSquare,
   Square,
-  Edit2,
-  Check
+  Info
 } from 'lucide-react';
 import type { MemoryTree } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,14 +31,12 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isFlipped, setIsFlipped] = useState(false);
   
-  // Local overrides for editing (Name/Year)
   const [overrides, setOverrides] = useState<Record<string, { name?: string, date?: string }>>({});
   const [editingField, setEditingField] = useState<{ id: string, field: 'name' | 'year' } | null>(null);
   const [editValue, setEditingValue] = useState('');
 
   const uiTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Apply overrides to tree memories
   const localMemories = useMemo(() => {
     return tree.memories.map(m => ({
       ...m,
@@ -48,62 +45,43 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
     }));
   }, [tree.memories, overrides]);
 
+  // HARDENED SEARCH LOGIC
   const filteredMemories = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
+    const q = searchQuery.toLowerCase().trim();
     return localMemories
       .filter(m => !!m.photoUrl)
       .filter(m => {
         const matchPerson = !filterPerson || m.tags.personIds.includes(filterPerson);
         if (!matchPerson) return false;
+        if (!q) return true;
         
-        if (!query) return true;
-        
-        const inName = m.name.toLowerCase().includes(query);
-        const inDesc = m.description?.toLowerCase().includes(query);
-        const inDate = new Date(m.date).getFullYear().toString().includes(query);
-        const inPeople = m.tags.personIds.some(pid => 
-          tree.people.find(p => p.id === pid)?.name.toLowerCase().includes(query)
+        const nameMatch = m.name.toLowerCase().includes(q);
+        const descMatch = m.description?.toLowerCase().includes(q);
+        const yearMatch = new Date(m.date).getFullYear().toString().includes(q);
+        const peopleMatch = m.tags.personIds.some(pid => 
+          tree.people.find(p => p.id === pid)?.name.toLowerCase().includes(q)
         );
         
-        return inName || inDesc || inDate || inPeople;
+        return nameMatch || descMatch || yearMatch || peopleMatch;
       });
   }, [localMemories, filterPerson, searchQuery, tree.people]);
 
   const currentMemory = filteredMemories[currentIndex];
 
-  // Autoplay cycle (10s when idle)
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    
-    if (!showUi && viewMode === 'theatre' && filteredMemories.length > 1) {
-      interval = setInterval(() => {
-        setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
-      }, 10000);
-    }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [showUi, viewMode, filteredMemories.length]);
-
-  // Reset flip when changing image
   useEffect(() => {
     setIsFlipped(false);
   }, [currentIndex]);
 
-  // Preloader Logic for Zero Latency
   useEffect(() => {
-    if (filteredMemories.length > 1) {
-      const nextIndex = (currentIndex + 1) % filteredMemories.length;
-      const prevIndex = (currentIndex - 1 + filteredMemories.length) % filteredMemories.length;
-      [nextIndex, prevIndex].forEach(idx => {
-        const img = new Image();
-        img.src = filteredMemories[idx].photoUrl!;
-      });
+    let interval: NodeJS.Timeout | null = null;
+    if (!showUi && viewMode === 'theatre' && filteredMemories.length > 1 && !editingField) {
+      interval = setInterval(() => {
+        setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
+      }, 10000);
     }
-  }, [currentIndex, filteredMemories]);
+    return () => { if (interval) clearInterval(interval); };
+  }, [showUi, viewMode, filteredMemories.length, editingField]);
 
-  // Auto-hide UI logic
   useEffect(() => {
     const resetTimer = () => {
       setShowUi(true);
@@ -122,7 +100,6 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
     };
   }, [viewMode, editingField]);
 
-  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (editingField) {
@@ -130,63 +107,31 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
         if (e.key === 'Escape') setEditingField(null);
         return;
       }
-
-      if (e.key === 'Escape') {
-        setShowCli(false);
-        setFilterPerson('');
-        setSearchQuery('');
-      }
+      if (e.key === 'Escape') { setShowCli(false); setFilterPerson(''); setSearchQuery(''); }
       if (showCli) return;
-
-      if (e.key === 'ArrowLeft') {
-        setCurrentIndex(prev => (prev - 1 + filteredMemories.length) % filteredMemories.length);
-      }
-      if (e.key === 'ArrowRight') {
-        setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
-      }
-      if (e.key === 'g') {
-        setViewMode(prev => prev === 'theatre' ? 'grid' : 'theatre');
-      }
-      if (e.key === 's') {
-        e.preventDefault();
-        document.getElementById('search-input')?.focus();
-      }
+      if (e.key === 'ArrowLeft') setCurrentIndex(prev => (prev - 1 + filteredMemories.length) % filteredMemories.length);
+      if (e.key === 'ArrowRight') setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
+      if (e.key === 'g') setViewMode(prev => prev === 'theatre' ? 'grid' : 'theatre');
+      if (e.key === 's') { e.preventDefault(); document.getElementById('search-input')?.focus(); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [filteredMemories.length, showCli, editingField, editValue]);
-
-  const startEdit = (e: React.MouseEvent, id: string, field: 'name' | 'year', currentVal: string) => {
-    e.stopPropagation();
-    setEditingField({ id, field });
-    setEditingValue(currentVal);
-  };
 
   const saveEdit = () => {
     if (!editingField) return;
     const { id, field } = editingField;
     setOverrides(prev => ({
       ...prev,
-      [id]: {
-        ...prev[id],
-        [field === 'year' ? 'date' : 'name']: field === 'year' ? `${editValue}-01-01` : editValue
-      }
+      [id]: { ...prev[id], [field === 'year' ? 'date' : 'name']: field === 'year' ? `${editValue}-01-01` : editValue }
     }));
     setEditingField(null);
   };
 
-  const handleExportWithOverrides = () => {
-    const updatedTree = {
-      ...tree,
-      memories: localMemories
-    };
-    onExport('ZIP', updatedTree);
-  };
-
   if (!currentMemory && filteredMemories.length === 0) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-slate-700 font-serif italic px-10 text-center">
-        No matches in the current protocol.
+      <div className="min-h-screen bg-black flex items-center justify-center text-slate-700 font-serif italic">
+        No protocol matches found.
         <button onClick={() => { setSearchQuery(''); setFilterPerson(''); }} className="ml-4 underline text-white">Reset Search</button>
       </div>
     );
@@ -200,12 +145,8 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
         {showCli && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/98 backdrop-blur-2xl overflow-y-auto">
             <div className="p-8 md:p-12">
-              <button onClick={() => setShowCli(false)} className="fixed top-8 right-8 p-4 bg-white/5 hover:bg-white/10 rounded-full border border-white/5">
-                <X className="w-6 h-6 text-white" />
-              </button>
-              <div className="max-w-5xl mx-auto pt-20">
-                <ArtifactCliTab />
-              </div>
+              <button onClick={() => setShowCli(false)} className="fixed top-8 right-8 p-4 bg-white/5 hover:bg-white/10 rounded-full border border-white/5"><X className="w-6 h-6 text-white" /></button>
+              <div className="max-w-5xl mx-auto pt-20"><ArtifactCliTab /></div>
             </div>
           </motion.div>
         )}
@@ -214,126 +155,82 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
       <div className="relative z-10 w-full h-screen flex flex-col">
         <motion.header animate={{ y: showUi ? 0 : -100, opacity: showUi ? 1 : 0 }} className="fixed top-0 left-0 right-0 z-50 px-10 py-8 flex justify-between items-start bg-gradient-to-b from-black via-black/50 to-transparent pointer-events-none">
           <div className="pointer-events-auto flex items-center gap-5">
-            <div className="w-10 h-10 bg-white rounded-sm flex items-center justify-center shadow-2xl">
-              <span className="font-serif font-black text-black text-xl italic">S</span>
-            </div>
+            <div className="w-10 h-10 bg-white rounded-sm flex items-center justify-center shadow-2xl font-serif font-black text-black text-xl italic">S</div>
             <div className="flex flex-col">
               <h1 className="text-xl font-serif font-bold text-white tracking-tighter uppercase italic">Schnitzel Bank</h1>
               <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.5em] -mt-1">The Murray Family</span>
             </div>
           </div>
 
-          <div className="pointer-events-auto flex items-center gap-6 bg-black/60 backdrop-blur-2xl border border-white/5 rounded-full px-6 py-2 shadow-2xl transition-all focus-within:border-white/20">
-            <div className="relative flex items-center gap-2">
-              <Search className="w-3 h-3 text-white/20" />
-              <input 
-                id="search-input" 
-                type="text" 
-                placeholder="SEARCH ARCHIVE..." 
-                value={searchQuery} 
-                onChange={(e) => { setSearchQuery(e.target.value); setCurrentIndex(0); }} 
-                className="w-32 md:w-48 bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-white focus:ring-0 placeholder:text-white/10 p-0" 
-              />
-            </div>
+          <div className="pointer-events-auto flex items-center gap-6 bg-black/60 backdrop-blur-2xl border border-white/5 rounded-full px-6 py-2 shadow-2xl">
+            <Search className="w-3 h-3 text-white/20" />
+            <input id="search-input" type="text" placeholder="SEARCH..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentIndex(0); }} className="w-32 md:w-48 bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-white focus:ring-0 placeholder:text-white/10 p-0" />
             <div className="w-px h-4 bg-white/10"></div>
-            <select 
-              value={filterPerson} 
-              onChange={(e) => { setFilterPerson(e.target.value); setCurrentIndex(0); }} 
-              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-white/40 focus:ring-0 cursor-pointer p-0 pr-4"
-            >
+            <select value={filterPerson} onChange={(e) => { setFilterPerson(e.target.value); setCurrentIndex(0); }} className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-white/40 focus:ring-0 cursor-pointer p-0 pr-4">
               <option value="" className="bg-black">ALL SUBJECTS</option>
               {tree.people.map(p => <option key={p.id} value={p.id} className="bg-black">{p.name.toUpperCase()}</option>)}
             </select>
           </div>
 
           <div className="pointer-events-auto flex gap-4">
-            <button onClick={() => setViewMode(viewMode === 'grid' ? 'theatre' : 'grid')} className="p-3.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 transition-all">
-              {viewMode === 'grid' ? <Maximize2 className="w-4 h-4 text-white" /> : <Grid className="w-4 h-4 text-white" />}
-            </button>
-            <button onClick={() => setShowCli(true)} className="p-3.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 transition-all">
-              <Terminal className="w-4 h-4 text-white" />
-            </button>
-            <button onClick={handleExportWithOverrides} className="p-3.5 bg-white text-black hover:bg-slate-200 rounded-full transition-all shadow-xl">
-              <Download className="w-4 h-4" />
-            </button>
+            <button onClick={() => setViewMode(viewMode === 'grid' ? 'theatre' : 'grid')} className="p-3.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 transition-all">{viewMode === 'grid' ? <Maximize2 className="w-4 h-4 text-white" /> : <Grid className="w-4 h-4 text-white" />}</button>
+            <button onClick={() => setShowCli(true)} className="p-3.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 transition-all"><Terminal className="w-4 h-4 text-white" /></button>
+            <button onClick={() => onExport('ZIP', { ...tree, memories: localMemories })} className="p-3.5 bg-white text-black hover:bg-slate-200 rounded-full transition-all shadow-xl"><Download className="w-4 h-4" /></button>
           </div>
         </motion.header>
 
         {viewMode === 'theatre' && currentMemory && (
           <div className="flex-1 relative flex items-center justify-center overflow-hidden">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2/3 h-2/3 bg-white/[0.01] rounded-full blur-[120px]"></div>
+            <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/[0.02] via-transparent to-transparent"></div>
+            
             <AnimatePresence mode="wait">
-              <motion.div 
-                key={currentMemory.id} 
-                initial={{ opacity: 0, rotateY: isFlipped ? -180 : 0 }} 
-                animate={{ opacity: 1, rotateY: isFlipped ? 180 : 0 }} 
-                exit={{ opacity: 0 }} 
-                transition={{ duration: 0.15, ease: "linear" }}
-                className="relative z-10 w-full h-full flex items-center justify-center p-6 md:p-24 perspective-1000"
-                onClick={() => setIsFlipped(!isFlipped)}
-              >
-                {!isFlipped ? (
-                  <img 
-                    src={currentMemory.photoUrl} 
-                    alt={currentMemory.name} 
-                    className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 rounded-sm cursor-help" 
-                  />
-                ) : (
-                  <div className="max-w-md w-full aspect-video bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-xl flex flex-col items-center justify-center p-12 text-center shadow-2xl [transform:rotateY(180deg)]">
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.5em] mb-6 italic">Artifact Note</span>
-                    <p className="text-2xl font-serif italic text-white/80 leading-relaxed">
-                      {currentMemory.description || "No classification notes available for this fragment."}
-                    </p>
-                  </div>
-                )}
-
-                {/* Metadata HUD */}
+              <motion.div key={currentMemory.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="relative z-10 w-full h-full flex items-center justify-center p-6 md:p-24">
+                <img src={currentMemory.photoUrl} alt={currentMemory.name} className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 rounded-sm" />
+                
+                {/* SMALL METADATA CARD (ONLY THIS FLIPS) */}
                 <motion.div 
                   animate={{ y: showUi ? 0 : 100, opacity: showUi ? 1 : 0 }} 
-                  className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-3xl border border-white/5 px-10 py-5 rounded-sm flex flex-col items-center pointer-events-auto"
-                  onClick={e => e.stopPropagation()}
+                  className="absolute bottom-12 left-1/2 -translate-x-1/2 perspective-1000 pointer-events-auto"
                 >
-                  <div 
-                    className="text-[9px] font-black text-white/30 uppercase tracking-[0.5em] mb-2 italic cursor-pointer hover:text-white transition-colors"
-                    onDoubleClick={(e) => startEdit(e, currentMemory.id, 'year', new Date(currentMemory.date).getFullYear().toString())}
+                  <motion.div 
+                    animate={{ rotateY: isFlipped ? 180 : 0 }}
+                    transition={{ duration: 0.6, type: "spring", stiffness: 260, damping: 20 }}
+                    onClick={() => setIsFlipped(!isFlipped)}
+                    className="relative w-64 min-h-[100px] cursor-pointer preserve-3d shadow-2xl"
                   >
-                    {editingField?.id === currentMemory.id && editingField.field === 'year' ? (
-                      <div className="flex items-center gap-2">
-                        <input value={editValue} onChange={e => setEditingValue(e.target.value)} className="bg-transparent border-b border-white/20 text-white w-12 text-center focus:ring-0 p-0" autoFocus />
-                        <Check className="w-3 h-3 text-emerald-400" onClick={saveEdit} />
+                    {/* Front of Card */}
+                    <div className="absolute inset-0 backface-hidden bg-black/80 backdrop-blur-3xl border border-white/10 px-6 py-4 rounded-sm flex flex-col items-center justify-center">
+                      <div className="text-[8px] font-black text-white/30 uppercase tracking-[0.4em] mb-1 italic" onDoubleClick={(e) => { e.stopPropagation(); setEditingField({id: currentMemory.id, field: 'year'}); setEditingValue(new Date(currentMemory.date).getFullYear().toString()); }}>
+                        {editingField?.id === currentMemory.id && editingField.field === 'year' ? (
+                          <input value={editValue} onChange={e => setEditingValue(e.target.value)} onBlur={saveEdit} className="bg-transparent border-b border-white/20 text-white w-10 text-center outline-none" autoFocus />
+                        ) : <>Ref. {currentIndex + 1} // ERA {new Date(currentMemory.date).getFullYear()}</>}
                       </div>
-                    ) : (
-                      <>Ref. {currentIndex + 1} // ERA {new Date(currentMemory.date).getFullYear()}</>
-                    )}
-                  </div>
-                  
-                  <div 
-                    className="text-xl font-serif italic text-white tracking-widest border-b border-white/10 pb-2 mb-4 cursor-pointer hover:text-emerald-400 transition-colors group"
-                    onDoubleClick={(e) => startEdit(e, currentMemory.id, 'name', currentMemory.name)}
-                  >
-                    {editingField?.id === currentMemory.id && editingField.field === 'name' ? (
-                      <div className="flex items-center gap-3">
-                        <input value={editValue} onChange={e => setEditingValue(e.target.value)} className="bg-transparent border-none text-white text-center focus:ring-0 p-0" autoFocus />
-                        <Check className="w-4 h-4 text-emerald-400" onClick={saveEdit} />
+                      <div className="text-lg font-serif italic text-white tracking-widest border-b border-white/5 pb-1 mb-2 text-center truncate w-full" onDoubleClick={(e) => { e.stopPropagation(); setEditingField({id: currentMemory.id, field: 'name'}); setEditingValue(currentMemory.name); }}>
+                        {editingField?.id === currentMemory.id && editingField.field === 'name' ? (
+                          <input value={editValue} onChange={e => setEditingValue(e.target.value)} onBlur={saveEdit} className="bg-transparent text-white text-center outline-none w-full" autoFocus />
+                        ) : currentMemory.name}
                       </div>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        {currentMemory.name}
-                        <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-40" />
-                      </span>
-                    )}
-                  </div>
+                      <div className="flex gap-1">
+                        {currentMemory.tags.personIds.map(pid => (
+                          <span key={pid} className="text-[7px] font-black uppercase tracking-widest text-white/40">{tree.people.find(p => p.id === pid)?.name}</span>
+                        ))}
+                      </div>
+                      <Info className="absolute bottom-2 right-2 w-2.5 h-2.5 text-white/10" />
+                    </div>
 
-                  <div className="flex gap-2">
-                    {currentMemory.tags.personIds.map(pid => (
-                      <span key={pid} className="text-[8px] font-black uppercase tracking-widest text-white/40 px-2 py-1 bg-white/5 rounded-sm">{tree.people.find(p => p.id === pid)?.name}</span>
-                    ))}
-                  </div>
+                    {/* Back of Card (Description) */}
+                    <div className="absolute inset-0 backface-hidden [transform:rotateY(180deg)] bg-white/5 backdrop-blur-3xl border border-white/20 p-6 rounded-sm flex flex-col items-center justify-center text-center">
+                      <span className="text-[7px] font-black text-white/20 uppercase tracking-[0.5em] mb-2 italic">Classification</span>
+                      <p className="text-xs font-serif italic text-white/80 leading-relaxed">
+                        {currentMemory.description || "No specific metadata note available."}
+                      </p>
+                    </div>
+                  </motion.div>
                 </motion.div>
               </motion.div>
             </AnimatePresence>
-            <button onClick={() => setCurrentIndex(prev => (prev - 1 + filteredMemories.length) % filteredMemories.length)} className={`absolute left-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'}`}><ChevronLeft className="w-16 h-16 stroke-[0.5]" /></button>
-            <button onClick={() => setCurrentIndex(prev => (prev + 1) % filteredMemories.length)} className={`absolute right-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-700 ${showUi ? 'opacity-100' : 'opacity-0'}`}><ChevronRight className="w-16 h-16 stroke-[0.5]" /></button>
+            <button onClick={(e) => { e.stopPropagation(); setCurrentIndex(prev => (prev - 1 + filteredMemories.length) % filteredMemories.length); }} className={`absolute left-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronLeft className="w-16 h-16 stroke-[0.5]" /></button>
+            <button onClick={(e) => { e.stopPropagation(); setCurrentIndex(prev => (prev + 1) % filteredMemories.length); }} className={`absolute right-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-700 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronRight className="w-16 h-16 stroke-[0.5]" /></button>
           </div>
         )}
 
