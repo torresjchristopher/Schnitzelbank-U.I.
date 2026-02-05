@@ -209,7 +209,7 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
             <AnimatePresence mode="wait">
               <motion.div key={currentMemory.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: transitionDuration }} className="relative z-10 w-full h-full flex items-center justify-center p-20 md:p-32">
                 <div className="relative flex items-center justify-center w-full h-full max-h-[70vh]">
-                  <img src={currentMemory.photoUrl || currentMemory.fileUrl} className="max-w-[80vw] max-h-full object-contain shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-sm border border-white/5" />
+                  <img src={currentMemory.photoUrl} className="max-w-[80vw] max-h-full object-contain shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-sm border border-white/5" />
                   
                   <motion.div animate={{ y: showUi ? 0 : 100, opacity: showUi ? 1 : 0 }} className="absolute -bottom-24 left-1/2 -translate-x-1/2 perspective-1000 pointer-events-auto z-20">
                     <motion.div animate={{ rotateY: isFlipped ? 180 : 0 }} transition={{ duration: 0.8, type: "spring", stiffness: 100, damping: 20 }} className="relative w-96 min-h-[130px] cursor-pointer preserve-3d shadow-[0_30px_60px_rgba(0,0,0,0.8)]">
@@ -245,7 +245,7 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
             <div className="grid grid-cols-2 md:grid-cols-8 gap-6 max-w-[1800px] mx-auto pb-20">
               {filteredMemories.map((m, idx) => (
                 <motion.div key={m.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => { setCurrentIndex(idx); setViewMode('theatre'); }} className="aspect-[3/4] bg-white/[0.02] border border-white/5 rounded-sm overflow-hidden cursor-pointer group hover:border-white/20 transition-all shadow-xl">
-                  <img src={m.photoUrl || m.fileUrl} className="w-full h-full object-cover opacity-40 group-hover:opacity-100 grayscale group-hover:grayscale-0 transition-all duration-700" />
+                  <img src={m.photoUrl} className="w-full h-full object-cover opacity-40 group-hover:opacity-100 grayscale group-hover:grayscale-0 transition-all duration-700" />
                 </motion.div>
               ))}
             </div>
