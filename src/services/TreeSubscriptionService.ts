@@ -35,14 +35,14 @@ export function subscribeToMemoryTree(
       const d = m.data();
       return {
         id: m.id,
-        name: d.name || d.fileName || 'Artifact',
-        description: d.description || '',
-        content: d.content || '',
-        location: d.location || '',
-        type: inferMemoryType(d.name || d.fileName || ''),
-        photoUrl: d.downloadUrl || d.url || d.fileUrl || '',
-        date: d.date || new Date().toISOString(),
-        tags: { personIds: [FAMILY_ROOT_ID], isFamilyMemory: true },
+        name: d.name || d.fileName || d.title || 'Artifact',
+        description: d.description || d.desc || '',
+        content: d.content || d.text || d.body || '',
+        location: d.location || d.place || d.loc || '',
+        type: inferMemoryType(d.name || d.fileName || d.contentType || ''),
+        photoUrl: d.downloadUrl || d.url || d.fileUrl || d.photoUrl || d.imageUrl || d.src || '',
+        date: d.date || d.timestamp?.toDate?.()?.toISOString() || d.createdAt || new Date().toISOString(),
+        tags: d.tags || { personIds: [FAMILY_ROOT_ID], isFamilyMemory: true },
       } as Memory;
     });
     memoriesBySource.set('GLOBAL', memories);
@@ -71,14 +71,14 @@ export function subscribeToMemoryTree(
             const d = m.data();
             return {
               id: m.id,
-              name: d.name || d.fileName || 'Artifact',
-              description: d.description || '',
-              content: d.content || '',
-              location: d.location || '',
-              type: inferMemoryType(d.name || d.fileName || ''),
-              photoUrl: d.downloadUrl || d.url || d.fileUrl || '',
-              date: d.date || new Date().toISOString(),
-              tags: { personIds: [person.id], isFamilyMemory: false },
+              name: d.name || d.fileName || d.title || 'Artifact',
+              description: d.description || d.desc || '',
+              content: d.content || d.text || d.body || '',
+              location: d.location || d.place || d.loc || '',
+              type: inferMemoryType(d.name || d.fileName || d.contentType || ''),
+              photoUrl: d.downloadUrl || d.url || d.fileUrl || d.photoUrl || d.imageUrl || d.src || '',
+              date: d.date || d.timestamp?.toDate?.()?.toISOString() || d.createdAt || new Date().toISOString(),
+              tags: d.tags || { personIds: [person.id], isFamilyMemory: false },
             } as Memory;
           });
           memoriesBySource.set(person.id, memories);

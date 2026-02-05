@@ -52,16 +52,16 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
     return localMemories
       .filter(m => !!m.photoUrl)
       .filter(m => {
-        const matchPerson = !filterPerson || m.tags.personIds.includes(filterPerson);
+        const matchPerson = !filterPerson || (m.tags?.personIds || []).includes(filterPerson);
         if (!matchPerson) return false;
         if (!q) return true;
         
-        const nameMatch = m.name.toLowerCase().includes(q);
+        const nameMatch = m.name?.toLowerCase().includes(q);
         const descMatch = m.description?.toLowerCase().includes(q);
         const contentMatch = m.content?.toLowerCase().includes(q);
         const locationMatch = m.location?.toLowerCase().includes(q);
-        const yearMatch = new Date(m.date).getFullYear().toString().includes(q);
-        const peopleMatch = m.tags.personIds.some(pid => 
+        const yearMatch = m.date ? new Date(m.date).getFullYear().toString().includes(q) : false;
+        const peopleMatch = (m.tags?.personIds || []).some(pid => 
           tree.people.find(p => p.id === pid)?.name.toLowerCase().includes(q)
         );
         

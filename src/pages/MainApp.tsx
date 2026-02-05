@@ -43,16 +43,16 @@ export default function MainApp({ tree, onExport }: { tree: Tree; onExport: (f: 
 
   const list = useMemo(() => tree.memories.filter(m => {
     const q = query.toLowerCase().trim();
-    const matchPerson = !person || m.tags.personIds.includes(person);
+    const matchPerson = !person || (m.tags?.personIds || []).includes(person);
     if (!matchPerson) return false;
     if (!q) return true;
     
     return (
-      m.name.toLowerCase().includes(q) ||
+      m.name?.toLowerCase().includes(q) ||
       m.description?.toLowerCase().includes(q) ||
       m.content?.toLowerCase().includes(q) ||
       m.location?.toLowerCase().includes(q) ||
-      new Date(m.date).getFullYear().toString().includes(q)
+      (m.date ? new Date(m.date).getFullYear().toString().includes(q) : false)
     );
   }), [tree.memories, person, query]);
 
