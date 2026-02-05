@@ -48,25 +48,54 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
   }, [tree.memories, overrides]);
 
   const filteredMemories = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    return localMemories
-      .filter(m => !!m.photoUrl)
-      .filter(m => {
-        const matchPerson = !filterPerson || (m.tags?.personIds || []).includes(filterPerson);
-        if (!matchPerson) return false;
-        if (!q) return true;
-        
-        const nameMatch = m.name?.toLowerCase().includes(q);
-        const descMatch = m.description?.toLowerCase().includes(q);
-        const contentMatch = m.content?.toLowerCase().includes(q);
-        const locationMatch = m.location?.toLowerCase().includes(q);
-        const yearMatch = m.date ? new Date(m.date).getFullYear().toString().includes(q) : false;
-        const peopleMatch = (m.tags?.personIds || []).some(pid => 
-          tree.people.find(p => p.id === pid)?.name.toLowerCase().includes(q)
-        );
-        
-        return nameMatch || descMatch || contentMatch || locationMatch || yearMatch || peopleMatch;
-      });
+    try {
+      const q = searchQuery.toLowerCase().trim();
+      
+      // Auto-predict Person: Check if query matches any known person
+      const matchingPerson = q ? tree.people.find(p => p.name.toLowerCase().includes(q)) : null;
+      
+      return localMemories
+        .filter(m => !!m.photoUrl)
+        .filter(m => {
+          // If we matched a person by name, filter specifically by that person's ID
+          // Otherwise, fall back to global search across fields
+          const personIds = m.tags?.personIds || [];
+          
+          // 1. Handle explicit person dropdown filter
+          const matchPersonDropdown = !filterPerson || personIds.includes(filterPerson);
+          if (!matchPersonDropdown) return false;
+          
+          if (!q) return true;
+
+          // 2. If query matches a person's name, show only that person's memories
+          if (matchingPerson) {
+            return personIds.includes(matchingPerson.id);
+          }
+
+          // 3. Fallback: Standard global search across fields
+          const nameMatch = m.name?.toLowerCase().includes(q);
+          const descMatch = m.description?.toLowerCase().includes(q);
+          const contentMatch = m.content?.toLowerCase().includes(q);
+          const locationMatch = m.location?.toLowerCase().includes(q);
+          
+          let yearMatch = false;
+          try {
+            if (m.date) {
+              const year = new Date(m.date).getFullYear();
+              if (!isNaN(year)) yearMatch = year.toString().includes(q);
+            }
+          } catch(e) {}
+
+          const peopleMatch = personIds.some(pid => 
+            tree.people.find(p => p.id === pid)?.name.toLowerCase().includes(q)
+          );
+          
+          return nameMatch || descMatch || contentMatch || locationMatch || yearMatch || peopleMatch;
+        });
+    } catch (err) {
+      console.error("Filter Error:", err);
+      return [];
+    }
   }, [localMemories, filterPerson, searchQuery, tree.people]);
 
   const currentMemory = filteredMemories[currentIndex];
