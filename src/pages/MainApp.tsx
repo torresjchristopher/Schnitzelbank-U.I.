@@ -1,11 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Download, Terminal, Search, X, Maximize2, Grid, Cpu, Monitor, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// --- Types ---
-type Memory = { id: string; name: string; photoUrl: string; date: string; description?: string; tags: { personIds: string[] } };
-type Person = { id: string; name: string };
-type Tree = { memories: Memory[]; people: Person[] };
+import type { MemoryTree as Tree } from '../types';
 
 // --- UI Components ---
 const CLI = ({ onClose }: { onClose: () => void }) => (
