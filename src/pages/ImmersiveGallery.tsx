@@ -101,19 +101,39 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (showCli || editingField) return;
+      // Ignore navigation if user is typing in an input or select
+      if (
+        showCli || 
+        editingField || 
+        document.activeElement?.tagName === 'INPUT' || 
+        document.activeElement?.tagName === 'SELECT' ||
+        document.activeElement?.tagName === 'TEXTAREA'
+      ) return;
+
       if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setShowUi(true); // Keep UI visible during navigation
         setTransitionDuration(0.2);
         setCurrentIndex(prev => (prev - 1 + filteredMemories.length) % filteredMemories.length);
       }
       if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setShowUi(true); // Keep UI visible during navigation
         setTransitionDuration(0.2);
         setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
+      }
+      if (e.key === 'g' || e.key === 'G') {
+        setViewMode(prev => {
+          if (prev === 'theatre') { setGridDensity(2); return 'grid'; }
+          if (gridDensity === 2) { setGridDensity(8); return 'grid'; }
+          if (gridDensity === 8) { setGridDensity(12); return 'grid'; }
+          return 'theatre';
+        });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [filteredMemories.length, showCli, editingField]);
+  }, [filteredMemories.length, showCli, editingField, gridDensity]);
 
   // --- RENDER SAFETY WRAPPER ---
   try {
