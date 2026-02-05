@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Download, Terminal, Search, ChevronLeft, ChevronRight, 
-  X, Grid, Maximize2, CheckSquare, Square, Info 
+  X, Grid, Maximize2
 } from 'lucide-react';
 import type { MemoryTree } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,12 +21,10 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
   const [showCli, setShowCli] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPerson, setFilterPerson] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isFlipped, setIsFlipped] = useState(false);
   const [transitionDuration, setTransitionDuration] = useState(0.2);
-  const [overrides, setOverrides] = useState<Record<string, { name?: string, date?: string }>>({});
-  const [editingField, setEditingField] = useState<{ id: string, field: 'name' | 'year' } | null>(null);
-  const [editValue, setEditingValue] = useState('');
+  const [overrides] = useState<Record<string, { name?: string, date?: string }>>({});
+  const [editingField] = useState<{ id: string, field: 'name' | 'year' } | null>(null);
 
   const uiTimeoutRef = useRef<any>(null);
 
