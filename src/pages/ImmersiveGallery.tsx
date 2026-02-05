@@ -51,15 +51,19 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
     try {
       const q = searchQuery.toLowerCase().trim();
       
-      // Auto-predict Person: Check if query matches any known person
-      const matchingPerson = q ? tree.people.find(p => p.name.toLowerCase().includes(q)) : null;
+      // Auto-predict Person or Tag: Check if query matches any known person or tag
+      const matchingPerson = q ? tree.people?.find(p => p.name?.toLowerCase().includes(q)) : null;
       
-      return localMemories
+      // Collect all custom tags across all memories for prediction
+      const allTags = new Set<string>();
+      tree.memories?.forEach(m => m.tags?.customTags?.forEach(t => allTags.add(t.toLowerCase())));
+      const matchingTag = q ? Array.from(allTags).find(t => t.includes(q)) : null;
+      
+      return (localMemories || [])
         .filter(m => !!m.photoUrl)
         .filter(m => {
-          // If we matched a person by name, filter specifically by that person's ID
-          // Otherwise, fall back to global search across fields
           const personIds = m.tags?.personIds || [];
+          const customTags = (m.tags?.customTags || []).map(t => t.toLowerCase());
           
           // 1. Handle explicit person dropdown filter
           const matchPersonDropdown = !filterPerson || personIds.includes(filterPerson);
@@ -67,12 +71,17 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
           
           if (!q) return true;
 
-          // 2. If query matches a person's name, show only that person's memories
+          // 2. Priority: Person Name Match
           if (matchingPerson) {
             return personIds.includes(matchingPerson.id);
           }
 
-          // 3. Fallback: Standard global search across fields
+          // 3. Priority: Custom Tag Match
+          if (matchingTag) {
+            return customTags.includes(matchingTag);
+          }
+
+          // 4. Fallback: Standard global search across fields
           const nameMatch = m.name?.toLowerCase().includes(q);
           const descMatch = m.description?.toLowerCase().includes(q);
           const contentMatch = m.content?.toLowerCase().includes(q);
@@ -81,13 +90,14 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
           let yearMatch = false;
           try {
             if (m.date) {
-              const year = new Date(m.date).getFullYear();
+              const dateObj = new Date(m.date);
+              const year = dateObj.getFullYear();
               if (!isNaN(year)) yearMatch = year.toString().includes(q);
             }
           } catch(e) {}
 
           const peopleMatch = personIds.some(pid => 
-            tree.people.find(p => p.id === pid)?.name.toLowerCase().includes(q)
+            tree.people?.find(p => p.id === pid)?.name?.toLowerCase().includes(q)
           );
           
           return nameMatch || descMatch || contentMatch || locationMatch || yearMatch || peopleMatch;
@@ -96,9 +106,16 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
       console.error("Filter Error:", err);
       return [];
     }
-  }, [localMemories, filterPerson, searchQuery, tree.people]);
+  }, [localMemories, filterPerson, searchQuery, tree.people, tree.memories]);
 
-  const currentMemory = filteredMemories[currentIndex];
+  // SAFE ACCESS: Ensure currentIndex stays in bounds when list changes
+  useEffect(() => {
+    if (currentIndex >= filteredMemories.length && filteredMemories.length > 0) {
+      setCurrentIndex(0);
+    }
+  }, [filteredMemories.length, currentIndex]);
+
+  const currentMemory = filteredMemories[currentIndex] || null;
 
   useEffect(() => {
     setIsFlipped(false);
