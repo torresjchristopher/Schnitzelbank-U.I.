@@ -28,6 +28,7 @@ function App() {
     PersistenceService.getInstance();
 
     const unsub = subscribeToMemoryTree(MURRAY_PROTOCOL_KEY, (partial) => {
+      console.log('[FIREBASE] Sync Update received:', Object.keys(partial));
       setMemoryTree((prev) => {
         const next = {
           ...prev,
@@ -86,6 +87,7 @@ function App() {
   return (
     <HashRouter>
       <Routes>
+        <Route path="/" element={<Navigate to="/archive" replace />} />
         <Route path="/archive" element={<ImmersiveGallery tree={memoryTree} onExport={handleExport} />} />
         <Route path="*" element={<Navigate to="/archive" replace />} />
       </Routes>
