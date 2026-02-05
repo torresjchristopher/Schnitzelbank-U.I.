@@ -31,6 +31,7 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
   const [filterPerson, setFilterPerson] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isFlipped, setIsFlipped] = useState(false);
+  const [transitionDuration, setTransitionDuration] = useState(0.2);
   
   const [overrides, setOverrides] = useState<Record<string, { name?: string, date?: string }>>({});
   const [editingField, setEditingField] = useState<{ id: string, field: 'name' | 'year' } | null>(null);
@@ -57,12 +58,14 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
         
         const nameMatch = m.name.toLowerCase().includes(q);
         const descMatch = m.description?.toLowerCase().includes(q);
+        const contentMatch = m.content?.toLowerCase().includes(q);
+        const locationMatch = m.location?.toLowerCase().includes(q);
         const yearMatch = new Date(m.date).getFullYear().toString().includes(q);
         const peopleMatch = m.tags.personIds.some(pid => 
           tree.people.find(p => p.id === pid)?.name.toLowerCase().includes(q)
         );
         
-        return nameMatch || descMatch || yearMatch || peopleMatch;
+        return nameMatch || descMatch || contentMatch || locationMatch || yearMatch || peopleMatch;
       });
   }, [localMemories, filterPerson, searchQuery, tree.people]);
 
@@ -76,6 +79,7 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
     let interval: NodeJS.Timeout | null = null;
     if (!showUi && viewMode === 'theatre' && filteredMemories.length > 1 && !editingField) {
       interval = setInterval(() => {
+        setTransitionDuration(1.5); // Slower transition for auto-advance
         setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
       }, 10000);
     }
@@ -109,8 +113,14 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
       }
       if (e.key === 'Escape') { setShowCli(false); setFilterPerson(''); setSearchQuery(''); }
       if (showCli) return;
-      if (e.key === 'ArrowLeft') setCurrentIndex(prev => (prev - 1 + filteredMemories.length) % filteredMemories.length);
-      if (e.key === 'ArrowRight') setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
+      if (e.key === 'ArrowLeft') {
+        setTransitionDuration(0.2); // Faster transition for manual navigation
+        setCurrentIndex(prev => (prev - 1 + filteredMemories.length) % filteredMemories.length);
+      }
+      if (e.key === 'ArrowRight') {
+        setTransitionDuration(0.2); // Faster transition for manual navigation
+        setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
+      }
       if (e.key === 'g') setViewMode(prev => prev === 'theatre' ? 'grid' : 'theatre');
       if (e.key === 's') { e.preventDefault(); document.getElementById('search-input')?.focus(); }
     };
@@ -160,12 +170,12 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
       </AnimatePresence>
 
       <div className="relative z-10 w-full h-screen flex flex-col">
-        <motion.header animate={{ y: showUi ? 0 : -100, opacity: showUi ? 1 : 0 }} className="fixed top-0 left-0 right-0 z-50 px-10 py-8 flex justify-between items-start bg-gradient-to-b from-black via-black/50 to-transparent pointer-events-none">
-          <div className="pointer-events-auto flex items-center gap-5">
-            <div className="w-10 h-10 bg-white rounded-sm flex items-center justify-center shadow-2xl font-serif font-black text-black text-xl italic">S</div>
-            <div className="flex flex-col">
-              <h1 className="text-xl font-serif font-bold text-white tracking-tighter uppercase italic">Schnitzel Bank</h1>
-              <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.5em] -mt-1">The Murray Family</span>
+        <motion.header animate={{ y: showUi ? 0 : -100, opacity: showUi ? 1 : 0 }} className="fixed top-0 left-0 right-0 z-50 px-10 py-4 flex justify-between items-start bg-gradient-to-b from-black via-black/50 to-transparent pointer-events-none">
+          <div className="pointer-events-auto flex items-center gap-3">
+            <div className="w-8 h-8 bg-white rounded-sm flex items-center justify-center shadow-2xl font-serif font-black text-black text-lg italic">S</div>
+            <div className="flex items-baseline gap-3">
+              <h1 className="text-lg md:text-xl font-serif font-bold text-white tracking-tighter uppercase italic leading-none">Schnitzel Bank</h1>
+              <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.4em] leading-none whitespace-nowrap">The Murray Family</span>
             </div>
           </div>
 
@@ -206,7 +216,7 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
             <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/[0.02] via-transparent to-transparent"></div>
             
             <AnimatePresence mode="wait">
-              <motion.div key={currentMemory.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="relative z-10 w-full h-full flex items-center justify-center p-6 md:p-24">
+              <motion.div key={currentMemory.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: transitionDuration }} className="relative z-10 w-full h-full flex items-center justify-center p-6 md:p-24">
                 <img src={currentMemory.photoUrl} alt={currentMemory.name} className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 rounded-sm" />
                 
                 <motion.div 
@@ -248,8 +258,8 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
                 </motion.div>
               </motion.div>
             </AnimatePresence>
-            <button onClick={(e) => { e.stopPropagation(); setCurrentIndex(prev => (prev - 1 + filteredMemories.length) % filteredMemories.length); }} className={`absolute left-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronLeft className="w-16 h-16 stroke-[0.5]" /></button>
-            <button onClick={(e) => { e.stopPropagation(); setCurrentIndex(prev => (prev + 1) % filteredMemories.length); }} className={`absolute right-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-700 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronRight className="w-16 h-16 stroke-[0.5]" /></button>
+            <button onClick={(e) => { e.stopPropagation(); setTransitionDuration(0.2); setCurrentIndex(prev => (prev - 1 + filteredMemories.length) % filteredMemories.length); }} className={`absolute left-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronLeft className="w-16 h-16 stroke-[0.5]" /></button>
+            <button onClick={(e) => { e.stopPropagation(); setTransitionDuration(0.2); setCurrentIndex(prev => (prev + 1) % filteredMemories.length); }} className={`absolute right-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-700 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronRight className="w-16 h-16 stroke-[0.5]" /></button>
           </div>
         )}
 

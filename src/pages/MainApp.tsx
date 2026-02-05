@@ -45,10 +45,20 @@ export default function MainApp({ tree, onExport }: { tree: Tree; onExport: (f: 
   const [person, setPerson] = useState('');
   const uiTimer = useRef<any>(null);
 
-  const list = useMemo(() => tree.memories.filter(m => 
-    (!person || m.tags.personIds.includes(person)) && 
-    (!query || m.name.toLowerCase().includes(query.toLowerCase()))
-  ), [tree.memories, person, query]);
+  const list = useMemo(() => tree.memories.filter(m => {
+    const q = query.toLowerCase().trim();
+    const matchPerson = !person || m.tags.personIds.includes(person);
+    if (!matchPerson) return false;
+    if (!q) return true;
+    
+    return (
+      m.name.toLowerCase().includes(q) ||
+      m.description?.toLowerCase().includes(q) ||
+      m.content?.toLowerCase().includes(q) ||
+      m.location?.toLowerCase().includes(q) ||
+      new Date(m.date).getFullYear().toString().includes(q)
+    );
+  }), [tree.memories, person, query]);
 
   const active = list[index];
 
@@ -71,10 +81,10 @@ export default function MainApp({ tree, onExport }: { tree: Tree; onExport: (f: 
     <div className="min-h-screen bg-black text-white font-sans selection:bg-white/10 overflow-hidden relative">
       <AnimatePresence>{showCli && <CLI onClose={() => setShowCli(false)} />}</AnimatePresence>
 
-      <motion.header animate={{ y: showUi ? 0 : -100, opacity: showUi ? 1 : 0 }} className="fixed top-0 inset-x-0 z-50 p-10 flex justify-between items-start pointer-events-none">
-        <div className="pointer-events-auto flex items-center gap-4">
-          <div className="w-10 h-10 bg-white rounded-sm flex items-center justify-center font-serif font-black text-black text-xl italic shadow-2xl">S</div>
-          <div className="flex flex-col"><span className="text-xl font-serif italic font-black uppercase tracking-tighter">Schnitzelbank</span><span className="text-[9px] font-black text-white/30 uppercase tracking-[0.5em]">Institutional</span></div>
+      <motion.header animate={{ y: showUi ? 0 : -100, opacity: showUi ? 1 : 0 }} className="fixed top-0 inset-x-0 z-50 p-6 flex justify-between items-start pointer-events-none">
+        <div className="pointer-events-auto flex items-center gap-3">
+          <div className="w-8 h-8 bg-white rounded-sm flex items-center justify-center font-serif font-black text-black text-lg italic shadow-2xl">S</div>
+          <div className="flex items-baseline gap-3"><span className="text-lg md:text-xl font-serif italic font-black uppercase tracking-tighter leading-none">Schnitzelbank</span><span className="text-[8px] font-black text-white/30 uppercase tracking-[0.4em] leading-none whitespace-nowrap">Institutional</span></div>
         </div>
 
         <div className="pointer-events-auto flex items-center gap-6 bg-black/60 backdrop-blur-2xl border border-white/5 rounded-full px-6 py-2">
