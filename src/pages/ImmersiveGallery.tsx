@@ -33,17 +33,34 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
 
   const filteredMemories = useMemo(() => {
     return tree.memories
-      .filter(m => !!m.photoUrl) // FILTER OUT NULL FRAGMENTS
+      .filter(m => !!m.photoUrl)
       .filter(m => {
+        const query = searchQuery.toLowerCase();
         const matchPerson = !filterPerson || m.tags.personIds.includes(filterPerson);
         const matchSearch = !searchQuery || 
-          m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          m.description?.toLowerCase().includes(searchQuery.toLowerCase());
+          m.name.toLowerCase().includes(query) ||
+          m.description?.toLowerCase().includes(query) ||
+          m.tags.personIds.some(pid => 
+            tree.people.find(p => p.id === pid)?.name.toLowerCase().includes(query)
+          );
         return matchPerson && matchSearch;
       });
-  }, [tree.memories, filterPerson, searchQuery]);
+  }, [tree.memories, filterPerson, searchQuery, tree.people]);
 
   const currentMemory = filteredMemories[currentIndex];
+
+  // Preloader Logic for Zero Latency
+  useEffect(() => {
+    if (filteredMemories.length > 1) {
+      const nextIndex = (currentIndex + 1) % filteredMemories.length;
+      const prevIndex = (currentIndex - 1 + filteredMemories.length) % filteredMemories.length;
+      
+      [nextIndex, prevIndex].forEach(idx => {
+        const img = new Image();
+        img.src = filteredMemories[idx].photoUrl!;
+      });
+    }
+  }, [currentIndex, filteredMemories]);
 
   // Auto-hide UI logic
   useEffect(() => {
@@ -54,11 +71,9 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
         uiTimeoutRef.current = setTimeout(() => setShowUi(false), 3000);
       }
     };
-
     window.addEventListener('mousemove', resetTimer);
     window.addEventListener('keydown', resetTimer);
     resetTimer();
-
     return () => {
       window.removeEventListener('mousemove', resetTimer);
       window.removeEventListener('keydown', resetTimer);
@@ -86,6 +101,7 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
         setViewMode(prev => prev === 'theatre' ? 'grid' : 'theatre');
       }
       if (e.key === 's') {
+        e.preventDefault();
         document.getElementById('search-input')?.focus();
       }
     };
@@ -95,9 +111,9 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
 
   if (!currentMemory && filteredMemories.length === 0) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-slate-700 font-serif italic">
-        The Archive is prepared. Use the Artifact CLI to begin ingestion.
-        <button onClick={() => { setSearchQuery(''); setFilterPerson(''); }} className="ml-4 underline text-white">Reset View</button>
+      <div className="min-h-screen bg-black flex items-center justify-center text-slate-700 font-serif italic px-10 text-center">
+        No matches in the current protocol.
+        <button onClick={() => { setSearchQuery(''); setFilterPerson(''); }} className="ml-4 underline text-white">Reset Search</button>
       </div>
     );
   }
@@ -110,7 +126,7 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
         {showCli && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/98 backdrop-blur-2xl overflow-y-auto">
             <div className="p-8 md:p-12">
-              <button onClick={() => setShowCli(false)} className="fixed top-8 right-8 p-4 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/5">
+              <button onClick={() => setShowCli(false)} className="fixed top-8 right-8 p-4 bg-white/5 hover:bg-white/10 rounded-full border border-white/5">
                 <X className="w-6 h-6 text-white" />
               </button>
               <div className="max-w-5xl mx-auto pt-20">
@@ -125,7 +141,7 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
         <motion.header animate={{ y: showUi ? 0 : -100, opacity: showUi ? 1 : 0 }} className="fixed top-0 left-0 right-0 z-50 px-10 py-8 flex justify-between items-start bg-gradient-to-b from-black via-black/50 to-transparent pointer-events-none">
           <div className="pointer-events-auto flex items-center gap-5">
             <div className="w-10 h-10 bg-white rounded-sm flex items-center justify-center shadow-2xl">
-              <span className="font-serif font-black text-black text-xl">S</span>
+              <span className="font-serif font-black text-black text-xl italic">S</span>
             </div>
             <div className="flex flex-col">
               <h1 className="text-xl font-serif font-bold text-white tracking-tighter uppercase italic">Schnitzel Bank</h1>
@@ -133,13 +149,26 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
             </div>
           </div>
 
-          <div className="pointer-events-auto flex items-center gap-6 bg-black/60 backdrop-blur-2xl border border-white/5 rounded-full px-6 py-2 shadow-2xl">
-            <Search className="w-3.5 h-3.5 text-white/20" />
-            <input id="search-input" type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 md:w-48 bg-transparent border-none text-[11px] font-bold uppercase tracking-widest text-white focus:ring-0 placeholder:text-white/10 pl-2" />
+          <div className="pointer-events-auto flex items-center gap-6 bg-black/60 backdrop-blur-2xl border border-white/5 rounded-full px-6 py-2 shadow-2xl transition-all focus-within:border-white/20">
+            <div className="relative flex items-center gap-2">
+              <Search className="w-3 h-3 text-white/20" />
+              <input 
+                id="search-input" 
+                type="text" 
+                placeholder="SEARCH ARCHIVE..." 
+                value={searchQuery} 
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentIndex(0); }} 
+                className="w-32 md:w-48 bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-white focus:ring-0 placeholder:text-white/10 p-0" 
+              />
+            </div>
             <div className="w-px h-4 bg-white/10"></div>
-            <select value={filterPerson} onChange={(e) => setFilterPerson(e.target.value)} className="bg-transparent border-none text-[11px] font-bold uppercase tracking-widest text-white/40 focus:ring-0 cursor-pointer">
-              <option value="" className="bg-black">All Subjects</option>
-              {tree.people.map(p => <option key={p.id} value={p.id} className="bg-black">{p.name}</option>)}
+            <select 
+              value={filterPerson} 
+              onChange={(e) => { setFilterPerson(e.target.value); setCurrentIndex(0); }} 
+              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-white/40 focus:ring-0 cursor-pointer p-0 pr-4"
+            >
+              <option value="" className="bg-black">ALL SUBJECTS</option>
+              {tree.people.map(p => <option key={p.id} value={p.id} className="bg-black">{p.name.toUpperCase()}</option>)}
             </select>
           </div>
 
@@ -158,22 +187,36 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
 
         {viewMode === 'theatre' && currentMemory && (
           <div className="flex-1 relative flex items-center justify-center overflow-hidden">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2/3 h-2/3 bg-white/[0.02] rounded-full blur-[120px]"></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2/3 h-2/3 bg-white/[0.01] rounded-full blur-[120px]"></div>
             <AnimatePresence mode="wait">
-              <motion.div key={currentMemory.id} initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.01 }} transition={{ duration: 0.8 }} className="relative z-10 w-full h-full flex items-center justify-center p-6 md:p-24">
-                <img src={currentMemory.photoUrl} alt={currentMemory.name} className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 rounded-sm" />
-                <motion.div animate={{ y: showUi ? 0 : 100, opacity: showUi ? 1 : 0 }} className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-3xl border border-white/5 px-10 py-5 rounded-sm flex flex-col items-center">
-                  <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.5em] mb-2 italic">Ref. {currentIndex + 1} // {new Date(currentMemory.date).getFullYear()}</div>
+              <motion.div 
+                key={currentMemory.id} 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }} 
+                transition={{ duration: 0.3, ease: "linear" }} // FASTER TRANSITION
+                className="relative z-10 w-full h-full flex items-center justify-center p-6 md:p-24"
+              >
+                <img 
+                  src={currentMemory.photoUrl} 
+                  alt={currentMemory.name} 
+                  className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 rounded-sm" 
+                />
+                <motion.div 
+                  animate={{ y: showUi ? 0 : 100, opacity: showUi ? 1 : 0 }} 
+                  className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-3xl border border-white/5 px-10 py-5 rounded-sm flex flex-col items-center"
+                >
+                  <div className="text-[9px] font-black text-white/30 uppercase tracking-[0.5em] mb-2 italic">Ref. {currentIndex + 1} // {new Date(currentMemory.date).getFullYear()}</div>
                   <div className="text-xl font-serif italic text-white tracking-widest border-b border-white/10 pb-2 mb-4">{currentMemory.name}</div>
                   <div className="flex gap-2">
                     {currentMemory.tags.personIds.map(pid => (
-                      <span key={pid} className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 py-1 bg-white/5 rounded-sm">{tree.people.find(p => p.id === pid)?.name}</span>
+                      <span key={pid} className="text-[8px] font-black uppercase tracking-widest text-white/40 px-2 py-1 bg-white/5 rounded-sm">{tree.people.find(p => p.id === pid)?.name}</span>
                     ))}
                   </div>
                 </motion.div>
               </motion.div>
             </AnimatePresence>
-            <button onClick={() => setCurrentIndex(prev => (prev - 1 + filteredMemories.length) % filteredMemories.length)} className={`absolute left-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-700 ${showUi ? 'opacity-100' : 'opacity-0'}`}><ChevronLeft className="w-16 h-16 stroke-[0.5]" /></button>
+            <button onClick={() => setCurrentIndex(prev => (prev - 1 + filteredMemories.length) % filteredMemories.length)} className={`absolute left-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'}`}><ChevronLeft className="w-16 h-16 stroke-[0.5]" /></button>
             <button onClick={() => setCurrentIndex(prev => (prev + 1) % filteredMemories.length)} className={`absolute right-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-700 ${showUi ? 'opacity-100' : 'opacity-0'}`}><ChevronRight className="w-16 h-16 stroke-[0.5]" /></button>
           </div>
         )}
