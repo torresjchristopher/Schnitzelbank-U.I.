@@ -19,10 +19,6 @@ function App() {
   const [initError, setInitError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
 
-  const handleUnlock = () => {
-    localStorage.setItem('schnitzel_session', 'active');
-    setIsAuthenticated(true);
-  };
   const [memoryTree, setMemoryTree] = useState<MemoryTree>(() => {
     try {
       const cached = localStorage.getItem('schnitzel_snapshot');
@@ -36,28 +32,24 @@ function App() {
         };
       }
     } catch (e) {
-      console.error("Snapshot corruption detected, resetting...", e);
       localStorage.removeItem('schnitzel_snapshot');
     }
-    
-    return {
-      protocolKey: MURRAY_PROTOCOL_KEY,
-      familyName: 'The Murray Family',
-      people: [],
-      memories: [],
-    };
+    return { protocolKey: MURRAY_PROTOCOL_KEY, familyName: 'The Murray Family', people: [], memories: [] };
   });
+
+  const handleUnlock = () => {
+    localStorage.setItem('schnitzel_session', 'active');
+    setIsAuthenticated(true);
+  };
 
   useEffect(() => {
     try {
       PersistenceService.getInstance();
     } catch (e) {
-      console.error('Persistence Init Failed:', e);
       setInitError('Vault Access Failed');
     }
 
     const unsub = subscribeToMemoryTree(MURRAY_PROTOCOL_KEY, (partial) => {
-      console.log('[FIREBASE] Sync Update received:', Object.keys(partial));
       setMemoryTree((prev) => {
         const next = {
           ...prev,
@@ -68,10 +60,9 @@ function App() {
         localStorage.setItem('schnitzel_snapshot', JSON.stringify(next));
         return next;
       });
-      setConnectionError(null); // Clear error on success
+      setConnectionError(null); 
       setIsSyncing(false);
     }, (error) => {
-      console.error('Firebase Sync Error:', error);
       setConnectionError(error.message || 'Access Restricted');
       setIsSyncing(false);
     });
@@ -83,14 +74,11 @@ function App() {
     try {
       let blob: Blob;
       const treeToExport = updatedTree || memoryTree;
-      
       if (format === 'PDF') {
         blob = await MemoryBookPdfService.generateMemoryBook(treeToExport, treeToExport.familyName);
       } else {
-        const exportService = ExportService.getInstance();
-        blob = await exportService.exportAsZip(treeToExport, '');
+        blob = await ExportService.getInstance().exportAsZip(treeToExport, '');
       }
-
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -100,26 +88,15 @@ function App() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
+      alert('Export failed.');
     }
   };
 
-  // Emergency Recovery UI
   if (initError) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-12 text-center">
-        <div className="w-12 h-12 rounded-full border border-red-500/50 flex items-center justify-center mb-8">
-          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-        </div>
-        <h1 className="text-white font-serif italic text-2xl mb-4">Vault Communication Failure</h1>
-        <p className="text-white/40 text-sm max-w-xs mb-8">The archive encountered a fatal initialization error. This usually happens when the browser's local database is restricted.</p>
-        <button 
-          onClick={() => { localStorage.clear(); window.location.reload(); }}
-          className="px-8 py-3 bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all"
-        >
-          Reset Local Node
-        </button>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-12 text-center text-white">
+        <h1 className="text-2xl mb-4 font-serif italic">Vault Error</h1>
+        <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="px-6 py-2 bg-white text-black">Reset Node</button>
       </div>
     );
   }
@@ -129,7 +106,7 @@ function App() {
       {!isAuthenticated ? (
         <LandingPage 
           onUnlock={handleUnlock} 
-          itemCount={memoryTree.memories.length} 
+          itemCount={memoryTree?.memories?.length || 0} 
           error={connectionError}
           isSyncing={isSyncing}
         />
