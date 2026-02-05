@@ -24,6 +24,7 @@ interface ImmersiveGalleryProps {
 export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [viewMode, setViewMode] = useState<'theatre' | 'grid'>('theatre');
+  const [gridDensity, setGridDensity] = useState<2 | 4 | 8 | 12>(4);
   const [showUi, setShowUi] = useState(true);
   const [showCli, setShowCli] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,7 +46,6 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
     }));
   }, [tree.memories, overrides]);
 
-  // HARDENED SEARCH LOGIC
   const filteredMemories = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return localMemories
@@ -128,6 +128,13 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
     setEditingField(null);
   };
 
+  const gridClassMap = {
+    2: 'grid-cols-2',
+    4: 'grid-cols-2 md:grid-cols-4',
+    8: 'grid-cols-4 md:grid-cols-8',
+    12: 'grid-cols-6 md:grid-cols-12'
+  };
+
   if (!currentMemory && filteredMemories.length === 0) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center text-slate-700 font-serif italic">
@@ -173,7 +180,22 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
           </div>
 
           <div className="pointer-events-auto flex gap-4">
-            <button onClick={() => setViewMode(viewMode === 'grid' ? 'theatre' : 'grid')} className="p-3.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 transition-all">{viewMode === 'grid' ? <Maximize2 className="w-4 h-4 text-white" /> : <Grid className="w-4 h-4 text-white" />}</button>
+            {viewMode === 'grid' && (
+              <div className="flex items-center bg-black/40 border border-white/5 rounded-full px-3 py-1 gap-3">
+                {[2, 4, 8, 12].map(d => (
+                  <button 
+                    key={d} 
+                    onClick={() => setGridDensity(d as any)}
+                    className={`text-[9px] font-black transition-all ${gridDensity === d ? 'text-white' : 'text-white/20 hover:text-white/40'}`}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setViewMode(viewMode === 'grid' ? 'theatre' : 'grid')} className="p-3.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 transition-all">
+              {viewMode === 'grid' ? <Maximize2 className="w-4 h-4 text-white" /> : <Grid className="w-4 h-4 text-white" />}
+            </button>
             <button onClick={() => setShowCli(true)} className="p-3.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 transition-all"><Terminal className="w-4 h-4 text-white" /></button>
             <button onClick={() => onExport('ZIP', { ...tree, memories: localMemories })} className="p-3.5 bg-white text-black hover:bg-slate-200 rounded-full transition-all shadow-xl"><Download className="w-4 h-4" /></button>
           </div>
@@ -187,7 +209,6 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
               <motion.div key={currentMemory.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="relative z-10 w-full h-full flex items-center justify-center p-6 md:p-24">
                 <img src={currentMemory.photoUrl} alt={currentMemory.name} className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 rounded-sm" />
                 
-                {/* SMALL METADATA CARD (ONLY THIS FLIPS) */}
                 <motion.div 
                   animate={{ y: showUi ? 0 : 100, opacity: showUi ? 1 : 0 }} 
                   className="absolute bottom-12 left-1/2 -translate-x-1/2 perspective-1000 pointer-events-auto"
@@ -198,14 +219,13 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
                     onClick={() => setIsFlipped(!isFlipped)}
                     className="relative w-64 min-h-[100px] cursor-pointer preserve-3d shadow-2xl"
                   >
-                    {/* Front of Card */}
-                    <div className="absolute inset-0 backface-hidden bg-black/80 backdrop-blur-3xl border border-white/10 px-6 py-4 rounded-sm flex flex-col items-center justify-center">
+                    <div className="absolute inset-0 backface-hidden bg-black/80 backdrop-blur-3xl border border-white/10 px-6 py-4 rounded-sm flex flex-col items-center justify-center text-center">
                       <div className="text-[8px] font-black text-white/30 uppercase tracking-[0.4em] mb-1 italic" onDoubleClick={(e) => { e.stopPropagation(); setEditingField({id: currentMemory.id, field: 'year'}); setEditingValue(new Date(currentMemory.date).getFullYear().toString()); }}>
                         {editingField?.id === currentMemory.id && editingField.field === 'year' ? (
                           <input value={editValue} onChange={e => setEditingValue(e.target.value)} onBlur={saveEdit} className="bg-transparent border-b border-white/20 text-white w-10 text-center outline-none" autoFocus />
                         ) : <>Ref. {currentIndex + 1} // ERA {new Date(currentMemory.date).getFullYear()}</>}
                       </div>
-                      <div className="text-lg font-serif italic text-white tracking-widest border-b border-white/5 pb-1 mb-2 text-center truncate w-full" onDoubleClick={(e) => { e.stopPropagation(); setEditingField({id: currentMemory.id, field: 'name'}); setEditingValue(currentMemory.name); }}>
+                      <div className="text-lg font-serif italic text-white tracking-widest border-b border-white/5 pb-1 mb-2 truncate w-full" onDoubleClick={(e) => { e.stopPropagation(); setEditingField({id: currentMemory.id, field: 'name'}); setEditingValue(currentMemory.name); }}>
                         {editingField?.id === currentMemory.id && editingField.field === 'name' ? (
                           <input value={editValue} onChange={e => setEditingValue(e.target.value)} onBlur={saveEdit} className="bg-transparent text-white text-center outline-none w-full" autoFocus />
                         ) : currentMemory.name}
@@ -218,7 +238,6 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
                       <Info className="absolute bottom-2 right-2 w-2.5 h-2.5 text-white/10" />
                     </div>
 
-                    {/* Back of Card (Description) */}
                     <div className="absolute inset-0 backface-hidden [transform:rotateY(180deg)] bg-white/5 backdrop-blur-3xl border border-white/20 p-6 rounded-sm flex flex-col items-center justify-center text-center">
                       <span className="text-[7px] font-black text-white/20 uppercase tracking-[0.5em] mb-2 italic">Classification</span>
                       <p className="text-xs font-serif italic text-white/80 leading-relaxed">
@@ -236,7 +255,7 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
 
         {viewMode === 'grid' && (
           <div className="flex-1 overflow-y-auto p-10 pt-40 custom-scrollbar">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 max-w-[1600px] mx-auto pb-20">
+            <div className={`grid ${gridClassMap[gridDensity]} gap-4 md:gap-8 max-w-[1800px] mx-auto pb-20 transition-all duration-500`}>
               {filteredMemories.map((m, idx) => (
                 <motion.div key={m.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => { setCurrentIndex(idx); setViewMode('theatre'); }} className={`aspect-[3/4] bg-white/[0.02] border rounded-sm overflow-hidden cursor-pointer hover:border-white/40 transition-all duration-500 relative group ${selectedIds.has(m.id) ? 'border-emerald-500/50 scale-95' : 'border-white/5'}`}>
                   <img src={m.photoUrl} className="w-full h-full object-cover opacity-40 group-hover:opacity-100 transition-all duration-700 grayscale hover:grayscale-0" />
@@ -245,7 +264,7 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent opacity-0 group-hover:opacity-100 flex items-end p-4 transition-opacity">
                     <div className="flex justify-between items-center w-full">
-                      <span className="text-white text-[10px] font-black uppercase tracking-widest italic truncate">{m.name}</span>
+                      <span className="text-white text-[8px] font-black uppercase tracking-widest italic truncate pr-2">{m.name}</span>
                       <a href={m.photoUrl} download onClick={e => e.stopPropagation()} className="p-1.5 hover:text-emerald-400"><Download className="w-3.5 h-3.5" /></a>
                     </div>
                   </div>
