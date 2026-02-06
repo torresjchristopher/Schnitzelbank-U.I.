@@ -110,7 +110,7 @@ function App() {
       ) : (
         <Routes>
           <Route path="/" element={<Navigate to="/archive" replace />} />
-          <Route path="/archive" element={<ImmersiveGallery tree={memoryTree} onExport={handleExport} overrides={overrides} setOverrides={setOverrides} />} />
+          <Route path="/archive" element={<ImmersiveGallery tree={memoryTree} onExport={handleExport} overrides={overrides} setOverrides={setOverrides} isSyncing={isSyncing} />} />
           <Route path="*" element={<Navigate to="/archive" replace />} />
         </Routes>
       )}
