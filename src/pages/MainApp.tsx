@@ -25,7 +25,7 @@ const CLI = ({ onClose }: { onClose: () => void }) => (
         </div>
         <div className="flex flex-col justify-center space-y-6 text-white">
           <div className="p-8 bg-white/[0.02] border border-white/5 italic text-white/40 text-sm">Automated metadata mapping for high-volume artifact sets using the Murray Ingestion Protocol.</div>
-          <a href="/downloads/artifact-cli.zip" className="w-full py-5 bg-white text-black font-black text-xs uppercase tracking-widest text-center italic hover:bg-slate-200 transition-all shadow-2xl">Download Latest Build</a>
+          <a href="./downloads/artifact-cli.zip" download className="w-full py-5 bg-white text-black font-black text-xs uppercase tracking-widest text-center italic hover:bg-slate-200 transition-all shadow-2xl">Download Latest Build</a>
         </div>
       </div>
     </div>

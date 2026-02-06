@@ -55,7 +55,7 @@ export default function ArtifactCliTab() {
             <p className="text-white/40 text-xs font-medium italic leading-relaxed">Automated metadata mapping for high-volume artifact sets using the Murray Ingestion Protocol.</p>
           </div>
           
-          <a href="/downloads/artifact-cli-v1.0.zip" className="flex items-center justify-center gap-3 px-8 py-4 bg-white text-black font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl hover:bg-slate-200 transition-all hover:scale-[1.02] active:scale-95 italic">
+          <a href="./downloads/artifact-cli.zip" download className="flex items-center justify-center gap-3 px-8 py-4 bg-white text-black font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl hover:bg-slate-200 transition-all hover:scale-[1.02] active:scale-95 italic">
             <Download className="w-4 h-4" />
             Initialize Download
           </a>
