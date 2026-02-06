@@ -4,8 +4,7 @@ import type { MemoryTree } from '../types';
 /**
  * ARCHIVE EXPORT SERVICE (OBSIDIAN EDITION)
  * Implements a high-caliber flat-folder structure for family preservation.
- * Respects local overrides for Name and Era.
- * Fixes: Strict folder-per-person sorting at the ZIP root.
+ * Fixes: Strict root-level folder creation for every person and resilient fetch.
  */
 
 class ExportServiceImpl {
@@ -14,45 +13,49 @@ class ExportServiceImpl {
     _familyBio: string
   ): Promise<Blob> {
     const zip = new JSZip();
-    
-    // Create the default folder for general memories
-    const familyFolder = zip.folder("The Murray Family");
-    
+    const root = zip.folder("Schnitzel Bank Archive") || zip;
+
+    // 1. PRE-CREATE ALL FOLDERS AT THE ZIP ROOT
+    // This ensures every person has a folder even if it's empty (or if fetch fails later)
+    const familyFolder = root.folder("The Murray Family");
+    const personFolderMap = new Map<string, JSZip>();
+
+    (tree.people || []).forEach(person => {
+      if (person.id !== 'FAMILY_ROOT') {
+        const folder = root.folder(this.sanitize(person.name));
+        if (folder) personFolderMap.set(String(person.id), folder);
+      }
+    });
+
     const processedIds = new Set<string>();
 
+    // 2. DOWNLOAD AND SORT ARTIFACTS
     const downloadPromises = (tree.memories || []).map(async (memory) => {
       if (!memory.photoUrl || processedIds.has(memory.id)) return;
       processedIds.add(memory.id);
 
       try {
-        // Robust fetch for archival data
         const response = await fetch(memory.photoUrl);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) throw new Error(`Status ${response.status}`);
         const blob = await response.blob();
 
         let targetFolder = familyFolder;
         
-        // --- PERSON-SPECIFIC FOLDER SORTING ---
+        // Determine the correct folder based on person attribution
         const personIds = Array.isArray(memory.tags?.personIds) ? memory.tags.personIds : [];
         const isFamilywide = !!memory.tags?.isFamilyMemory;
 
         if (!isFamilywide && personIds.length > 0) {
-          // Attribute to the first person tagged
-          const personId = personIds[0];
-          const person = tree.people?.find(p => String(p.id) === String(personId));
-          
-          if (person && person.id !== 'FAMILY_ROOT') {
-            // Create or access the specific person's folder at the ZIP root
-            targetFolder = zip.folder(this.sanitize(person.name));
-          }
+          const primaryPersonId = String(personIds[0]);
+          targetFolder = personFolderMap.get(primaryPersonId) || familyFolder;
         }
 
-        // --- FILENAME GENERATION ---
+        // Generate clean filename
         const year = new Date(memory.date || Date.now()).getFullYear();
         let baseName = this.sanitize(memory.name || 'artifact');
         const extension = this.getExt(memory.photoUrl);
         
-        // Remove accidental user extensions
+        // Prevent double extensions
         const dotIdx = baseName.lastIndexOf('.');
         if (dotIdx !== -1 && baseName.substring(dotIdx).length < 6) {
           baseName = baseName.substring(0, dotIdx);
@@ -64,7 +67,7 @@ class ExportServiceImpl {
           targetFolder.file(fileName, blob);
         }
       } catch (err) {
-        console.error(`Archival Export Failure [${memory.name}]:`, err);
+        console.error(`Archival Export Error [${memory.name}]:`, err);
       }
     });
 
