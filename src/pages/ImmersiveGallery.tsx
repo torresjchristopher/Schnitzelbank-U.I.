@@ -125,15 +125,18 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
     
     // 1. Update local state
     const updatedMemory = { ...currentMemory };
+    const fieldKey = field === 'year' ? 'date' : 'name';
+    const finalValue = field === 'year' ? `${newValue}-01-01` : newValue;
+
     if (field === 'year') {
-      updatedMemory.date = `${newValue}-01-01`;
+      updatedMemory.date = finalValue;
     } else {
-      updatedMemory.name = newValue;
+      updatedMemory.name = finalValue;
     }
 
     setOverrides(prev => ({
       ...prev,
-      [id]: { ...prev[id], [field === 'year' ? 'date' : 'name']: updatedMemory.date || updatedMemory.name }
+      [id]: { ...prev[id], [fieldKey]: finalValue }
     }));
 
     setEditingField(null);
