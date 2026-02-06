@@ -4,7 +4,7 @@ import type { MemoryTree } from '../types';
 /**
  * ARCHIVE EXPORT SERVICE (OBSIDIAN EDITION)
  * Implements a high-caliber flat-folder structure for family preservation.
- * Fixes: Ultra-robust fetch engine to bypass CORS blocks for ZIP population.
+ * Fixes: Cache-busting URLs to force fresh CORS headers and strict folder sorting.
  */
 
 class ExportServiceImpl {
@@ -12,16 +12,16 @@ class ExportServiceImpl {
     tree: MemoryTree,
     _familyBio: string
   ): Promise<Blob> {
-    console.log("📂 [ARCHIVAL] Initializing Export Engine...");
+    console.log("📂 [ARCHIVAL] Initializing Production Export...");
     const zip = new JSZip();
     const root = zip.folder("Schnitzel Bank Archive") || zip;
 
-    // 1. PRE-CREATE FOLDERS
+    // 1. PRE-CREATE ALL FOLDERS AT ROOT
     const familyFolder = root.folder("The Murray Family");
     const personFolderMap = new Map<string, JSZip>();
 
     (tree.people || []).forEach(person => {
-      if (person.id !== 'FAMILY_ROOT') {
+      if (person.id !== 'FAMILY_ROOT' && person.name !== 'Murray Archive') {
         const folder = root.folder(this.sanitize(person.name));
         if (folder) personFolderMap.set(String(person.id), folder);
       }
@@ -36,14 +36,16 @@ class ExportServiceImpl {
       processedIds.add(memory.id);
 
       try {
-        // PROXIED FETCH: Try to get the image as a blob directly
-        const response = await fetch(memory.photoUrl, {
+        // CACHE BUSTER: Append unique ID to force fresh CORS check from Google CDN
+        const archivalUrl = `${memory.photoUrl}${memory.photoUrl.includes('?') ? '&' : '?'}_archive_id=${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        
+        const response = await fetch(archivalUrl, {
           method: 'GET',
-          // Mode 'no-cors' will return an opaque blob, but JSZip might need a real one
-          // We use standard fetch but handle the failure gracefully
+          mode: 'cors',
+          credentials: 'omit'
         });
 
-        if (!response.ok) throw new Error(`Fetch Blocked (${response.status})`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const blob = await response.blob();
 
         let targetFolder = familyFolder;
@@ -52,9 +54,18 @@ class ExportServiceImpl {
           targetFolder = personFolderMap.get(String(personIds[0])) || familyFolder;
         }
 
+        // --- FILENAME GENERATION ---
         const year = new Date(memory.date || Date.now()).getUTCFullYear();
-        const fileName = `${year}_${this.sanitize(memory.name || 'artifact')}${this.getExt(memory.photoUrl)}`;
+        let baseName = this.sanitize(memory.name || 'artifact');
+        const extension = this.getExt(memory.photoUrl);
         
+        // Strip duplicate extensions (Kennedy.jpg -> Kennedy)
+        const lastDot = baseName.lastIndexOf('.');
+        if (lastDot !== -1 && baseName.substring(lastDot).length < 6) {
+          baseName = baseName.substring(0, lastDot);
+        }
+
+        const fileName = `${year}_${baseName}${extension}`;
         if (targetFolder) {
           targetFolder.file(fileName, blob);
           successCount++;
@@ -66,7 +77,7 @@ class ExportServiceImpl {
     });
 
     await Promise.all(downloadPromises);
-    console.log(`📦 [COMPLETED] ZIP generated with ${successCount} artifacts.`);
+    console.log(`📦 [COMPLETED] ZIP Composition finished with ${successCount} artifacts.`);
 
     return await zip.generateAsync({
       type: 'blob',
