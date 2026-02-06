@@ -4,8 +4,7 @@ import type { MemoryTree } from '../types';
 /**
  * ARCHIVE EXPORT SERVICE (OBSIDIAN EDITION)
  * Implements a high-caliber flat-folder structure for family preservation.
- * Respects local overrides for Name and Era.
- * Fixes: Strict person-to-folder mapping and robust archival fetching.
+ * Fixes: Strict person-to-folder mapping and resilient ZIP population.
  */
 
 class ExportServiceImpl {
@@ -15,9 +14,8 @@ class ExportServiceImpl {
   ): Promise<Blob> {
     const zip = new JSZip();
     
-    // We create folders directly at the ZIP root for maximum visibility upon extraction
-    const familyFolderName = "The Murray Family";
-    const familyFolder = zip.folder(familyFolderName);
+    // Create the primary folder for general family memories
+    const familyFolder = zip.folder("The Murray Family");
     
     const processedIds = new Set<string>();
 
@@ -26,35 +24,35 @@ class ExportServiceImpl {
       processedIds.add(memory.id);
 
       try {
-        // Fetch the artifact data
+        // Fetch artifact with CORS considerations
         const response = await fetch(memory.photoUrl);
-        if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const blob = await response.blob();
 
         let targetFolder = familyFolder;
         
-        // --- ARCHIVAL SORTING LOGIC ---
+        // --- PERSON-SPECIFIC FOLDER LOGIC ---
         const personIds = memory.tags?.personIds || [];
         const isFamilywide = memory.tags?.isFamilyMemory;
 
         if (!isFamilywide && personIds.length > 0) {
-          // Get the primary person attributed to this artifact
+          // Look for the first person tagged in this artifact
           const personId = personIds[0];
-          const person = tree.people.find(p => String(p.id) === String(personId));
+          const person = tree.people?.find(p => String(p.id) === String(personId));
           
           if (person && person.id !== 'FAMILY_ROOT') {
-            // Create or access the folder named after the person
-            const personName = this.sanitizeFileName(person.name);
-            targetFolder = zip.folder(personName) || familyFolder;
+            // Place inside a dedicated folder at the root of the ZIP
+            const folderName = this.sanitize(person.name);
+            targetFolder = zip.folder(folderName);
           }
         }
 
         // --- FILENAME GENERATION ---
         const year = new Date(memory.date || Date.now()).getFullYear();
-        let baseName = this.sanitizeFileName(memory.name || 'artifact');
-        const extension = this.getExtension(memory.photoUrl);
+        let baseName = this.sanitize(memory.name || 'artifact');
+        const extension = this.getExt(memory.photoUrl);
         
-        // Prevent double extensions (e.g. Murray.jpg.jpg)
+        // Strip user-typed extensions to prevent .jpg.jpg
         const dotIdx = baseName.lastIndexOf('.');
         if (dotIdx !== -1 && baseName.substring(dotIdx).length < 6) {
           baseName = baseName.substring(0, dotIdx);
@@ -66,10 +64,11 @@ class ExportServiceImpl {
           targetFolder.file(fileName, blob);
         }
       } catch (err) {
-        console.error(`Archival Export Error [${memory.name}]:`, err);
+        console.error(`Export Error [${memory.name}]:`, err);
       }
     });
 
+    // Wait for all artifacts to be added to the ZIP
     await Promise.all(downloadPromises);
 
     return await zip.generateAsync({
@@ -79,11 +78,11 @@ class ExportServiceImpl {
     });
   }
 
-  private sanitizeFileName(name: string): string {
+  private sanitize(name: string): string {
     return name.replace(/[/\\?%*:|"<>]/g, '-').trim() || 'artifact';
   }
 
-  private getExtension(url: string): string {
+  private getExt(url: string): string {
     try {
       const cleanUrl = url.split('?')[0];
       const parts = cleanUrl.split('.');
@@ -100,9 +99,7 @@ let instance: ExportServiceImpl | null = null;
 
 export const ExportService = {
   getInstance(): ExportServiceImpl {
-    if (!instance) {
-      instance = new ExportServiceImpl();
-    }
+    if (!instance) instance = new ExportServiceImpl();
     return instance;
   },
 };
