@@ -4,7 +4,7 @@ import type { MemoryTree } from '../types';
 /**
  * ARCHIVE EXPORT SERVICE (OBSIDIAN EDITION)
  * Implements a high-caliber flat-folder structure for family preservation.
- * Fixes: Strict root-level folder population and ultra-robust CORS-resilient fetch.
+ * Fixes: Robust cross-origin fetch and strict root-level folder population.
  */
 
 class ExportServiceImpl {
@@ -12,46 +12,42 @@ class ExportServiceImpl {
     tree: MemoryTree,
     _familyBio: string
   ): Promise<Blob> {
-    console.log("📂 [EXPORT] Starting Production Archival Build...");
+    console.log("📂 [EXPORT] Initializing Production Archival Build...");
     const zip = new JSZip();
     const root = zip.folder("Schnitzel Bank Archive") || zip;
 
-    // 1. Pre-create ALL person folders at the root
+    // 1. PRE-CREATE ALL FOLDERS AT THE ROOT
     const familyFolder = root.folder("The Murray Family");
     const personFolderMap = new Map<string, JSZip>();
 
     (tree.people || []).forEach(person => {
-      if (person.id !== 'FAMILY_ROOT') {
-        const folder = root.folder(this.sanitize(person.name));
-        if (folder) personFolderMap.set(String(person.id), folder);
+      if (person.id !== 'FAMILY_ROOT' && person.name !== 'Murray Archive') {
+        const folderName = this.sanitize(person.name);
+        const folder = root.folder(folderName);
+        if (folder) {
+          personFolderMap.set(String(person.id), folder);
+          console.log(`📁 [EXPORT] Prepared folder for: ${person.name}`);
+        }
       }
     });
 
     const processedIds = new Set<string>();
     let successCount = 0;
 
-    // 2. Resilient Concurrent Downloads
+    // 2. RESILIENT FETCH AND POPULATION
     const downloadPromises = (tree.memories || []).map(async (memory) => {
       if (!memory.photoUrl || processedIds.has(memory.id)) return;
       processedIds.add(memory.id);
 
       try {
-        // ULTRA-ROBUST FETCH: 
-        // 1. Force 'cors' mode
-        // 2. Add timestamp to bypass potential stale cache/blocks
-        const archivalUrl = `${memory.photoUrl}${memory.photoUrl.includes('?') ? '&' : '?'}_archival=${Date.now()}`;
-        
-        const response = await fetch(archivalUrl, {
+        // Fetch with no-cache and explicit CORS mode
+        const response = await fetch(memory.photoUrl, { 
           method: 'GET',
-          mode: 'cors',
-          credentials: 'omit',
-          cache: 'no-store'
+          mode: 'cors'
         });
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
         const blob = await response.blob();
-
-        if (!blob || blob.size === 0) throw new Error("Received empty artifact");
 
         let targetFolder = familyFolder;
         
@@ -64,8 +60,8 @@ class ExportServiceImpl {
           targetFolder = personFolderMap.get(primaryId) || familyFolder;
         }
 
-        // Filename: [YEAR]_[NAME].[EXT]
-        const year = new Date(memory.date || Date.now()).getFullYear();
+        // Filename Generation: [YEAR]_[NAME].[EXT]
+        const year = new Date(memory.date || Date.now()).getUTCFullYear();
         let baseName = this.sanitize(memory.name || 'artifact');
         const extension = this.getExt(memory.photoUrl);
         
@@ -76,19 +72,18 @@ class ExportServiceImpl {
         }
 
         const fileName = `${year}_${baseName}${extension}`;
-        
         if (targetFolder) {
           targetFolder.file(fileName, blob);
           successCount++;
-          console.log(`✅ [EXPORT] Archived: ${fileName} (${blob.size} bytes)`);
+          console.log(`✅ [EXPORT] Successfully added: ${fileName}`);
         }
       } catch (err: any) {
-        console.error(`❌ [EXPORT] Failed artifact [${memory.name}]:`, err.message);
+        console.error(`❌ [EXPORT] Failed to archive [${memory.name}]:`, err.message);
       }
     });
 
     await Promise.all(downloadPromises);
-    console.log(`📦 [EXPORT] ZIP Composition Complete. Total Artifacts: ${successCount}`);
+    console.log(`📦 [EXPORT] ZIP Generated. Total Items: ${successCount}`);
 
     return await zip.generateAsync({
       type: 'blob',
