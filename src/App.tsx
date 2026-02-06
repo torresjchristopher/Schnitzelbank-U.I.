@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import { PersistenceService } from './services/PersistenceService';
@@ -17,7 +17,6 @@ function App() {
   const [initError, setInitError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
 
-  // Global state for custom naming and dates
   const [overrides, setOverrides] = useState<Record<string, { name?: string, date?: string }>>(() => {
     const saved = localStorage.getItem('schnitzel_overrides');
     return saved ? JSON.parse(saved) : {};
@@ -58,15 +57,21 @@ function App() {
     }
 
     const unsub = subscribeToMemoryTree(MURRAY_PROTOCOL_KEY, (partial) => {
-      setMemoryTree((prev) => ({
-        ...prev,
-        ...partial,
-        protocolKey: MURRAY_PROTOCOL_KEY,
-        familyName: 'The Murray Family',
-      }));
+      setMemoryTree((prev) => {
+        const next = {
+          ...prev,
+          ...partial,
+          protocolKey: MURRAY_PROTOCOL_KEY,
+          familyName: 'The Murray Family',
+        };
+        localStorage.setItem('schnitzel_snapshot', JSON.stringify(next));
+        return next;
+      });
       setConnectionError(null); 
-      // Stop syncing state only if we have memories or after we've received an update
-      if (partial.memories || partial.people) {
+      
+      // CRITICAL FIX: Only stop syncing if we actually found memories
+      // or if this is a follow-up update.
+      if (partial.memories && partial.memories.length > 0) {
         setIsSyncing(false);
       }
     }, (error) => {
@@ -74,8 +79,8 @@ function App() {
       setIsSyncing(false);
     });
 
-    // Safety timeout for sync state
-    const timer = setTimeout(() => setIsSyncing(false), 5000);
+    // Safety timeout to prevent infinite loading
+    const timer = setTimeout(() => setIsSyncing(false), 8000);
 
     return () => {
       unsub();
@@ -94,8 +99,7 @@ function App() {
         downloadBlob(blob, `Murray_Archive_ZIP.zip`);
       }
     } catch (error) {
-      console.error("Export failed:", error);
-      alert('Export failed. Check console for details.');
+      alert('Export failed. Check console.');
     }
   };
 
@@ -110,7 +114,7 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  if (initError) return <div className="bg-black min-h-screen text-white flex items-center justify-center p-12 text-center"><button onClick={() => { localStorage.clear(); window.location.reload(); }} className="bg-white text-black px-8 py-3 font-black">RESET VAULT</button></div>;
+  if (initError) return <div className="bg-black min-h-screen flex items-center justify-center p-12"><button onClick={() => { localStorage.clear(); window.location.reload(); }} className="bg-white text-black px-8 py-3 font-black">RESET VAULT</button></div>;
 
   return (
     <HashRouter>
