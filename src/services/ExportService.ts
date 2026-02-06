@@ -4,7 +4,8 @@ import type { MemoryTree } from '../types';
 /**
  * ARCHIVE EXPORT SERVICE (OBSIDIAN EDITION)
  * Implements a high-caliber flat-folder structure for family preservation.
- * Fixes: Ultra-robust fetch engine to bypass CORS blocks and strict folder mapping.
+ * Fixes: Removed query-param cache busting (which breaks Firebase signatures).
+ * Uses standard fetch which respects the CORS update performed by the user.
  */
 
 class ExportServiceImpl {
@@ -16,18 +17,14 @@ class ExportServiceImpl {
     const zip = new JSZip();
     const root = zip.folder("Schnitzel Bank Archive") || zip;
 
-    // 1. PRE-CREATE ALL FOLDERS AT THE ROOT
+    // 1. PRE-CREATE ALL FOLDERS
     const familyFolder = root.folder("The Murray Family");
     const personFolderMap = new Map<string, JSZip>();
 
     (tree.people || []).forEach(person => {
       if (person.id !== 'FAMILY_ROOT' && person.name !== 'Murray Archive') {
-        const folderName = this.sanitize(person.name);
-        const folder = root.folder(folderName);
-        if (folder) {
-          personFolderMap.set(String(person.id), folder);
-          console.log(`📁 [EXPORT] Prepared folder for: ${person.name}`);
-        }
+        const folder = root.folder(this.sanitize(person.name));
+        if (folder) personFolderMap.set(String(person.id), folder);
       }
     });
 
@@ -40,16 +37,11 @@ class ExportServiceImpl {
       processedIds.add(memory.id);
 
       try {
-        console.log(`📡 [EXPORT] Attempting download: ${memory.name}`);
+        console.log(`📡 [EXPORT] Downloading: ${memory.name}`);
         
-        // CORS Safety: Force mode 'cors' and add cache-buster to bypass negative browser cache
-        const archivalUrl = `${memory.photoUrl}${memory.photoUrl.includes('?') ? '&' : '?'}_archive_burst=${Date.now()}`;
-        
-        const response = await fetch(archivalUrl, {
-          method: 'GET',
-          mode: 'cors',
-          credentials: 'omit'
-        });
+        // Use the URL as provided. The CORS fix on the bucket will now allow this.
+        // DO NOT add query parameters here as it breaks the Firebase signature.
+        const response = await fetch(memory.photoUrl);
 
         if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
         const blob = await response.blob();
@@ -81,7 +73,7 @@ class ExportServiceImpl {
         if (targetFolder) {
           targetFolder.file(fileName, blob);
           successCount++;
-          console.log(`✅ [EXPORT] Success: ${fileName} added to folder.`);
+          console.log(`✅ [EXPORT] Success: ${fileName} -> ${targetFolder.name}`);
         }
       } catch (err: any) {
         console.error(`❌ [EXPORT] Failed artifact [${memory.name}]:`, err.message);

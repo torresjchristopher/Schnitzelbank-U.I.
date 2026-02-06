@@ -58,13 +58,17 @@ function App() {
     }
 
     const unsub = subscribeToMemoryTree(MURRAY_PROTOCOL_KEY, (partial) => {
-      console.log('[FIREBASE] Sync Update:', Object.keys(partial));
-      setMemoryTree((prev) => ({
-        ...prev,
-        ...partial,
-        protocolKey: MURRAY_PROTOCOL_KEY,
-        familyName: 'The Murray Family',
-      }));
+      console.log('[FIREBASE] Sync Update received:', Object.keys(partial));
+      setMemoryTree((prev) => {
+        const next = {
+          ...prev,
+          ...partial,
+          protocolKey: MURRAY_PROTOCOL_KEY,
+          familyName: 'The Murray Family',
+        };
+        localStorage.setItem('schnitzel_snapshot', JSON.stringify(next));
+        return next;
+      });
       setConnectionError(null); 
       setIsSyncing(false);
     }, (error) => {
