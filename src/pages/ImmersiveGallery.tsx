@@ -16,7 +16,7 @@ interface ImmersiveGalleryProps {
 export default function ImmersiveGallery({ tree, onExport, overrides, setOverrides, isSyncing }: ImmersiveGalleryProps) {
   // --- STATE ---
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [viewMode, setViewMode] = useState<'theatre' | 'grid'>('theatre');
+  const [viewMode, setViewMode] = useState<'theatre' | 'grid-2' | 'grid-4' | 'grid-8' | 'grid-12'>('theatre');
   const [showUi, setShowUi] = useState(true);
   const [showCli, setShowCli] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,6 +32,27 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
 
   useEffect(() => { showUiRef.current = showUi; }, [showUi]);
   useEffect(() => { setIsFlipped(false); }, [currentIndex]);
+
+  // --- GRID CYCLE LOGIC ---
+  const cycleGridMode = () => {
+    setViewMode(prev => {
+      if (prev === 'theatre') return 'grid-2';
+      if (prev === 'grid-2') return 'grid-4';
+      if (prev === 'grid-4') return 'grid-8';
+      if (prev === 'grid-8') return 'grid-12';
+      return 'theatre';
+    });
+  };
+
+  const getGridCols = () => {
+    switch (viewMode) {
+      case 'grid-2': return 'grid-cols-1 md:grid-cols-2';
+      case 'grid-4': return 'grid-cols-2 md:grid-cols-4';
+      case 'grid-8': return 'grid-cols-4 md:grid-cols-8';
+      case 'grid-12': return 'grid-cols-6 md:grid-cols-12';
+      default: return 'grid-cols-4 md:grid-cols-8';
+    }
+  };
 
   // --- LOGIC: DATA MAPPING ---
   const localMemories = useMemo(() => {
@@ -204,7 +225,9 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
 
           <div className="pointer-events-auto flex gap-4">
             <button onClick={() => { localStorage.removeItem('schnitzel_session'); window.location.reload(); }} className="p-3.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 transition-all shadow-xl" title="Lock Archive"><Lock className="w-4 h-4 text-white/40" /></button>
-            <button onClick={() => setViewMode(viewMode === 'theatre' ? 'grid' : 'theatre')} className="p-3.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 transition-all shadow-xl">{viewMode === 'grid' ? <Maximize2 className="w-4 h-4" /> : <Grid className="w-4 h-4" />}</button>
+            <button onClick={cycleGridMode} className="p-3.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 transition-all shadow-xl">
+              {viewMode === 'theatre' ? <Grid className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
             <button onClick={() => setShowCli(true)} className="p-3.5 bg-white/5 rounded-full border border-white/5 shadow-xl transition-all"><Terminal className="w-4 h-4" /></button>
             <button onClick={() => onExport('ZIP', { ...tree, memories: localMemories })} className="p-3.5 bg-white text-black rounded-full shadow-2xl hover:bg-slate-200 transition-all"><Download className="w-4 h-4" /></button>
           </div>
@@ -271,9 +294,9 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
               </>
             )}
 
-            {viewMode === 'grid' && (
+            {viewMode !== 'theatre' && (
               <div className="flex-1 overflow-y-auto p-10 pt-32 custom-scrollbar">
-                <div className="grid grid-cols-2 md:grid-cols-8 gap-6 max-w-[1800px] mx-auto pb-20">
+                <div className={`grid ${getGridCols()} gap-6 max-w-[1800px] mx-auto pb-20`}>
                   {filteredMemories.map((m, idx) => (
                     <motion.div key={m.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => { setCurrentIndex(idx); setViewMode('theatre'); }} className="aspect-[3/4] bg-white/[0.02] border border-white/5 rounded-sm overflow-hidden cursor-pointer group hover:border-white/20 transition-all shadow-xl"><img src={m.photoUrl} className="w-full h-full object-cover opacity-40 group-hover:opacity-100 grayscale transition-all duration-700" /></motion.div>
                   ))}
