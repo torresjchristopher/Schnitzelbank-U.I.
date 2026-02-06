@@ -42,12 +42,8 @@ class ExportServiceImpl {
       try {
         console.log(`📡 [EXPORT] Attempting download: ${memory.name} from ${memory.photoUrl}`);
         
-        // CORS Safety: Force mode 'cors'
-        const response = await fetch(memory.photoUrl, {
-          method: 'GET',
-          mode: 'cors',
-          credentials: 'omit'
-        });
+        // Simpler fetch for public Firebase Storage URLs
+        const response = await fetch(memory.photoUrl);
 
         if (!response.ok) throw new Error(`Fetch failed with status ${response.status}`);
         const blob = await response.blob();
