@@ -33,7 +33,7 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
   useEffect(() => { showUiRef.current = showUi; }, [showUi]);
   useEffect(() => { setIsFlipped(false); }, [currentIndex]);
 
-  // --- LOGIC: INVINCIBLE DATA MAPPING ---
+  // --- LOGIC: DATA MAPPING ---
   const localMemories = useMemo(() => {
     try {
       return (tree?.memories || []).map(m => {
@@ -50,7 +50,7 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
     }
   }, [tree?.memories, overrides]);
 
-  // --- LOGIC: HYPER-ROBUST BROAD SEARCH ---
+  // --- LOGIC: BROAD SEARCH ---
   const filteredMemories = useMemo(() => {
     try {
       const q = searchQuery.toLowerCase().trim();
@@ -220,11 +220,19 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
           <div className="flex-1 relative flex items-center justify-center overflow-hidden">
             {viewMode === 'theatre' && currentMemory && (
               <>
-                <AnimatePresence mode="wait">
-                  <motion.div key={currentMemory.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: transitionDuration }} className="relative z-10 w-full h-full flex items-center justify-center p-20 md:p-32">
-                    <img src={currentMemory.photoUrl} className="max-w-[80vw] max-h-[70vh] object-contain shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-sm border border-white/5" />
-                  </motion.div>
-                </AnimatePresence>
+                <div className="relative z-10 w-full h-full flex items-center justify-center p-20 md:p-32">
+                  <AnimatePresence mode="wait">
+                    <motion.img 
+                      key={currentMemory.id} 
+                      src={currentMemory.photoUrl} 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: transitionDuration }}
+                      className="max-w-[80vw] max-h-[70vh] object-contain shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-sm border border-white/5" 
+                    />
+                  </AnimatePresence>
+                </div>
 
                 <AnimatePresence>
                   {showUi && (
@@ -253,8 +261,8 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
                   )}
                 </AnimatePresence>
 
-                <button onClick={() => { setTransitionDuration(0.2); setCurrentIndex(p => (p - 1 + filteredMemories.length) % filteredMemories.length); }} className={`absolute left-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronLeft className="w-16 h-16 stroke-[0.5]" /></button>
-                <button onClick={() => { setTransitionDuration(0.2); setCurrentIndex(p => (p + 1) % filteredMemories.length); }} className={`absolute right-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-700 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronRight className="w-16 h-16 stroke-[0.5]" /></button>
+                <button onClick={() => { setCurrentIndex(p => (p - 1 + filteredMemories.length) % filteredMemories.length); }} className={`absolute left-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronLeft className="w-16 h-16 stroke-[0.5]" /></button>
+                <button onClick={() => { setCurrentIndex(p => (p + 1) % filteredMemories.length); }} className={`absolute right-8 top-1/2 -translate-y-1/2 p-6 text-white/10 hover:text-white transition-opacity duration-700 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronRight className="w-16 h-16 stroke-[0.5]" /></button>
               </>
             )}
 
