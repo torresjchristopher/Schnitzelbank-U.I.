@@ -114,7 +114,7 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
         e.preventDefault();
         setTransitionDuration(0.2);
         setCurrentIndex(prev => (e.key === 'ArrowLeft' ? (prev - 1 + filteredMemories.length) % filteredMemories.length : (prev + 1) % filteredMemories.length));
-        startTimers(false); 
+        startTimers(false); // Navigation does NOT show menus
       } else {
         startTimers(true);
       }
@@ -162,6 +162,7 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
       )}</AnimatePresence>
 
       <div className="relative z-10 w-full h-screen flex flex-col">
+        {/* HEADER */}
         <motion.header animate={{ y: showUi ? 0 : -100, opacity: showUi ? 1 : 0 }} className="fixed top-0 left-0 right-0 z-50 px-10 py-4 flex justify-between items-center pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-start gap-0">
             <h1 className="text-lg font-serif font-bold text-white tracking-tighter uppercase italic leading-tight">Schnitzel Bank</h1>
@@ -201,9 +202,13 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
                       <img src={currentMemory.photoUrl} className="max-w-[80vw] max-h-full object-contain shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-sm border border-white/5" />
                       
                       <motion.div 
-                        initial={{ y: 100, opacity: 0 }}
-                        animate={{ y: showUi ? 0 : 100, opacity: showUi ? 1 : 0 }} 
-                        className="absolute -bottom-24 left-1/2 -translate-x-1/2 perspective-1000 pointer-events-auto z-20"
+                        animate={{ 
+                          y: showUi ? 0 : 100, 
+                          opacity: showUi ? 1 : 0,
+                          pointerEvents: showUi ? 'auto' : 'none' 
+                        }} 
+                        transition={{ duration: 0.4 }}
+                        className="absolute -bottom-24 left-1/2 -translate-x-1/2 perspective-1000 z-20"
                       >
                         <motion.div 
                           animate={{ rotateY: isFlipped ? 180 : 0 }} 
@@ -211,14 +216,22 @@ export default function ImmersiveGallery({ tree, onExport }: ImmersiveGalleryPro
                           onClick={() => setIsFlipped(!isFlipped)}
                           className="relative w-96 min-h-[130px] cursor-pointer preserve-3d shadow-[0_30px_60px_rgba(0,0,0,0.8)]"
                         >
+                          {/* CARD FRONT */}
                           <div className="absolute inset-0 backface-hidden bg-black/90 backdrop-blur-3xl border border-white/10 px-10 py-8 rounded-sm flex flex-col items-center justify-center text-center">
-                            <div className="text-[9px] font-black text-white/20 uppercase tracking-[0.5em] mb-3 italic hover:text-white/50 transition-colors" onDoubleClick={(e) => { e.stopPropagation(); setEditingField({ id: currentMemory.id, field: 'year' }); setEditValue(new Date(currentMemory.date).getFullYear().toString()); }}>
+                            <div 
+                              className="text-[9px] font-black text-white/20 uppercase tracking-[0.5em] mb-3 italic hover:text-white/50 transition-colors" 
+                              onDoubleClick={(e) => { e.stopPropagation(); setEditingField({ id: currentMemory.id, field: 'year' }); setEditValue(new Date(currentMemory.date).getFullYear().toString()); }}
+                            >
                               {editingField?.id === currentMemory.id && editingField.field === 'year' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-white/30 text-white w-12 text-center outline-none" /> : <>Record {currentIndex + 1} // {new Date(currentMemory.date || Date.now()).getFullYear()}</>}
                             </div>
-                            <div className="text-2xl font-serif italic text-white tracking-widest truncate w-full group" onDoubleClick={(e) => { e.stopPropagation(); setEditingField({ id: currentMemory.id, field: 'name' }); setEditValue(currentMemory.name); }}>
+                            <div 
+                              className="text-2xl font-serif italic text-white tracking-widest truncate w-full group" 
+                              onDoubleClick={(e) => { e.stopPropagation(); setEditingField({ id: currentMemory.id, field: 'name' }); setEditValue(currentMemory.name); }}
+                            >
                               {editingField?.id === currentMemory.id && editingField.field === 'name' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-white/30 text-white w-full text-center outline-none" /> : <span className="flex items-center justify-center gap-2">{currentMemory.name}<Edit3 className="w-3 h-3 opacity-0 group-hover:opacity-20 transition-opacity" /></span>}
                             </div>
                           </div>
+                          {/* CARD BACK */}
                           <div className="absolute inset-0 backface-hidden [transform:rotateY(180deg)] bg-white/[0.03] backdrop-blur-3xl border border-white/20 p-8 rounded-sm flex flex-col items-center justify-center text-center">
                             <span className="text-[8px] font-black text-white/20 uppercase tracking-[0.5em] mb-4 italic">Metadata Inscription</span>
                             <div className="max-h-[80px] overflow-y-auto custom-scrollbar"><p className="text-sm font-serif italic text-white/80 leading-relaxed">{currentMemory.description || "No archival notes found."}</p></div>
