@@ -33,7 +33,7 @@ function App() {
         const parsed = JSON.parse(cached);
         return {
           protocolKey: MURRAY_PROTOCOL_KEY,
-          familyName: 'The Murray Family',
+          familyName: 'The Murray Family Website',
           people: Array.isArray(parsed.people) ? parsed.people : [],
           memories: Array.isArray(parsed.memories) ? parsed.memories : [],
         };
@@ -41,7 +41,7 @@ function App() {
     } catch (e) {
       localStorage.removeItem('schnitzel_snapshot');
     }
-    return { protocolKey: MURRAY_PROTOCOL_KEY, familyName: 'The Murray Family', people: [], memories: [] };
+    return { protocolKey: MURRAY_PROTOCOL_KEY, familyName: 'The Murray Family Website', people: [], memories: [] };
   });
 
   const handleUnlock = () => {
@@ -62,7 +62,7 @@ function App() {
           ...prev,
           ...partial,
           protocolKey: MURRAY_PROTOCOL_KEY,
-          familyName: 'The Murray Family',
+          familyName: 'The Murray Family Website',
         };
         try {
           localStorage.setItem('schnitzel_snapshot', JSON.stringify(next));

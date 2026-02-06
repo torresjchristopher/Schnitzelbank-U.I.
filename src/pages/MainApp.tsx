@@ -80,7 +80,7 @@ export default function MainApp({ tree, onExport }: { tree: Tree; onExport: (f: 
       <motion.header animate={{ y: showUi ? 0 : -100, opacity: showUi ? 1 : 0 }} className="fixed top-0 inset-x-0 z-50 p-6 flex justify-between items-start pointer-events-none">
         <div className="pointer-events-auto flex items-center gap-3">
           <div className="w-8 h-8 bg-white rounded-sm flex items-center justify-center font-serif font-black text-black text-lg italic shadow-2xl">S</div>
-          <div className="flex items-baseline gap-3"><span className="text-lg md:text-xl font-serif italic font-black uppercase tracking-tighter leading-none">Schnitzelbank</span><span className="text-[8px] font-black text-white/30 uppercase tracking-[0.4em] leading-none whitespace-nowrap">The Murray Family</span></div>
+          <div className="flex items-baseline gap-3"><span className="text-lg md:text-xl font-serif italic font-black uppercase tracking-tighter leading-none">Schnitzelbank</span><span className="text-[8px] font-black text-white/30 uppercase tracking-[0.4em] leading-none whitespace-nowrap">The Murray Family Website</span></div>
         </div>
 
         <div className="pointer-events-auto flex items-center gap-6 bg-black/60 backdrop-blur-2xl border border-white/5 rounded-full px-6 py-2">

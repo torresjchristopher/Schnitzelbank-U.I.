@@ -107,7 +107,7 @@ export default function LandingPage({ onUnlock, itemCount = 0, error = null, isS
           </div>
         )}
         <div className="text-white/10 uppercase tracking-[0.3em] font-black mt-2">
-          The Murray Family Protocol // Schnitzel Bank // Obsidian Edition
+          The Murray Family Protocol // Schnitzelbank Website // Obsidian Edition
         </div>
       </motion.div>
 
