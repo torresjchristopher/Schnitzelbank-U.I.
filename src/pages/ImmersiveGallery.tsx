@@ -118,9 +118,12 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
             {viewMode === 'theatre' && currentMemory && (
               <>
                 <div className="relative z-10 w-full h-full flex items-center justify-center p-20 md:p-32">
-                  <img 
+                  <motion.img 
                     key={currentMemory.id} 
                     src={currentMemory.photoUrl} 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: transitionDuration }}
                     className="max-w-[80vw] max-h-[70vh] object-contain shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-sm border border-white/5" 
                   />
                 </div>
