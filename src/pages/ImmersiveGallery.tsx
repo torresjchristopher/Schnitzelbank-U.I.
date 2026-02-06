@@ -117,7 +117,14 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
           <div className="flex-1 relative flex items-center justify-center overflow-hidden">
             {viewMode === 'theatre' && currentMemory && (
               <>
-                <AnimatePresence mode="wait"><motion.div key={currentMemory.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: transitionDuration }} className="relative z-10 w-full h-full flex items-center justify-center p-20 md:p-32"><img src={currentMemory.photoUrl} className="max-w-[80vw] max-h-[70vh] object-contain shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-sm border border-white/5" /></motion.div></AnimatePresence>
+                <div className="relative z-10 w-full h-full flex items-center justify-center p-20 md:p-32">
+                  <img 
+                    key={currentMemory.id} 
+                    src={currentMemory.photoUrl} 
+                    className="max-w-[80vw] max-h-[70vh] object-contain shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-sm border border-white/5" 
+                  />
+                </div>
+
                 <motion.div animate={{ y: showUi ? 0 : 250, opacity: showUi ? 1 : 0, pointerEvents: showUi ? 'auto' : 'none' }} initial={false} transition={{ duration: 0.3 }} className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20"><div className="relative w-96 min-h-[130px] bg-black/90 backdrop-blur-3xl border border-white/10 px-10 py-8 rounded-sm flex flex-col items-center justify-center text-center shadow-2xl">
                   <div className="text-[9px] font-black text-white/20 uppercase tracking-[0.5em] mb-3 italic cursor-pointer" onDoubleClick={(e) => { e.stopPropagation(); setEditingField({ id: currentMemory.id, field: 'year' }); setEditValue(new Date(currentMemory.date).getUTCFullYear().toString()); }}>{editingField?.id === currentMemory.id && editingField.field === 'year' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-white/30 text-white w-12 text-center outline-none" /> : <>Record {currentIndex + 1} // {new Date(currentMemory.date || Date.now()).getUTCFullYear()}</>}</div>
                   <div className="text-2xl font-serif italic text-white tracking-widest truncate w-full cursor-pointer" onDoubleClick={(e) => { e.stopPropagation(); setEditingField({ id: currentMemory.id, field: 'name' }); setEditValue(currentMemory.name); }}>{editingField?.id === currentMemory.id && editingField.field === 'name' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-white/30 text-white w-full text-center outline-none" /> : <span className="flex items-center justify-center gap-2" onClick={(e) => { e.stopPropagation(); setIsFlipped(!isFlipped); }}>{isFlipped ? (currentMemory.description || "Archival Inscription...") : currentMemory.name}<Edit3 className="w-3 h-3 opacity-20" /></span>}</div>
