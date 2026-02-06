@@ -5,7 +5,7 @@ import type { MemoryTree } from '../types';
  * ARCHIVE EXPORT SERVICE (OBSIDIAN EDITION)
  * Implements a high-caliber flat-folder structure for family preservation.
  * Respects local overrides for Name and Era.
- * Fixes: Robust cross-origin fetch for ZIP population.
+ * Correctly sorts artifacts into 'The Murray Family' or individual person folders.
  */
 
 class ExportServiceImpl {
@@ -20,6 +20,7 @@ class ExportServiceImpl {
     const rootFolder = zip.folder("Schnitzel Bank Archive");
     if (!rootFolder) throw new Error("Could not create ZIP root");
 
+    // Pre-create 'The Murray Family' folder for clarity
     const familyFolder = rootFolder.folder("The Murray Family");
     
     const processedIds = new Set<string>();
@@ -29,30 +30,33 @@ class ExportServiceImpl {
       processedIds.add(memory.id);
 
       try {
-        // Robust fetch with cross-origin considerations
         const response = await fetch(memory.photoUrl, { mode: 'cors' });
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const blob = await response.blob();
 
         let targetFolder = familyFolder;
         
-        // Person-specific folders
-        const personIds = memory.tags?.personIds || [];
+        // --- PERSON SORTING LOGIC ---
+        const personIds = Array.isArray(memory.tags?.personIds) ? memory.tags.personIds : [];
+        
+        // If it's NOT a family-wide memory and has specifically tagged people
         if (!memory.tags?.isFamilyMemory && personIds.length > 0) {
           const personId = personIds[0];
-          const person = tree.people.find(p => p.id === personId);
+          // Find the person in the tree using normalized ID comparison
+          const person = tree.people.find(p => String(p.id) === String(personId));
+          
           if (person && person.id !== 'FAMILY_ROOT') {
-            // Create or get the person's folder
+            // Place in person-specific folder at the root of the archive
             targetFolder = rootFolder.folder(person.name) || familyFolder;
           }
         }
 
-        // Sanitize and name the file
+        // Sanitize and name the file using Custom Name and Year
         const year = new Date(memory.date).getFullYear();
         let baseName = this.sanitizeFileName(memory.name || 'artifact');
         const sourceExt = this.getExtension(memory.photoUrl);
         
-        // Strip existing extensions to prevent double-extensions
+        // Strip existing extensions from custom name if present
         const lastDotIndex = baseName.lastIndexOf('.');
         if (lastDotIndex !== -1 && baseName.substring(lastDotIndex).length < 6) {
           baseName = baseName.substring(0, lastDotIndex);
