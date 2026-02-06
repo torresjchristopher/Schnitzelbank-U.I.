@@ -69,8 +69,7 @@ function App() {
       });
       setConnectionError(null); 
       
-      // CRITICAL FIX: Only stop syncing if we actually found memories
-      // or if this is a follow-up update.
+      // Stop syncing only if we have memories or if it's a structural update
       if (partial.memories && partial.memories.length > 0) {
         setIsSyncing(false);
       }
@@ -79,7 +78,7 @@ function App() {
       setIsSyncing(false);
     });
 
-    // Safety timeout to prevent infinite loading
+    // Safety timeout
     const timer = setTimeout(() => setIsSyncing(false), 8000);
 
     return () => {
