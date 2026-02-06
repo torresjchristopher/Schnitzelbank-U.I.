@@ -63,7 +63,9 @@ class ExportServiceImpl {
           targetFolder = personFolderMap.get(primaryId) || familyFolder;
         }
 
-        const year = new Date(memory.date || Date.now()).getUTCFullYear();
+        const yearVal = memory.date ? new Date(memory.date).getUTCFullYear() : new Date().getUTCFullYear();
+        const year = isNaN(yearVal) ? new Date().getUTCFullYear() : yearVal;
+        
         let baseName = this.sanitize(memory.name || 'artifact');
         const extension = this.getExt(memory.photoUrl);
         

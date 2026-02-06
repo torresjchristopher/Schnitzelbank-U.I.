@@ -34,7 +34,7 @@ class MemoryBookPdfServiceImpl {
 
     // Sort memories chronologically
     const sortedMemories = [...tree.memories].sort(
-      (a, b) => new Date(b.timestamp || Date.now()).getTime() - new Date(a.timestamp || Date.now()).getTime()
+      (a, b) => new Date(b.timestamp || b.date || Date.now()).getTime() - new Date(a.timestamp || a.date || Date.now()).getTime()
     );
 
     // Content pages - artifacts with metadata
@@ -121,7 +121,7 @@ class MemoryBookPdfServiceImpl {
     // Date and title
     doc.setFontSize(10);
     doc.setFont('serif', 'bold');
-    const dateStr = new Date(memory.timestamp || Date.now()).toLocaleDateString('en-US', {
+    const dateStr = new Date(memory.timestamp || memory.date || Date.now()).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'

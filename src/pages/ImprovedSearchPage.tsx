@@ -64,22 +64,22 @@ export default function ImprovedSearchPage({ tree }: ImprovedSearchPageProps) {
     // Date range filter
     if (filters.startDate) {
       const start = new Date(filters.startDate);
-      filtered = filtered.filter(m => new Date(m.timestamp || Date.now()) >= start);
+      filtered = filtered.filter(m => new Date(m.timestamp || m.date || Date.now()) >= start);
     }
     if (filters.endDate) {
       const end = new Date(filters.endDate);
       end.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(m => new Date(m.timestamp || Date.now()) <= end);
+      filtered = filtered.filter(m => new Date(m.timestamp || m.date || Date.now()) <= end);
     }
 
     // Sort
     const sorted = [...filtered];
     switch (filters.sortBy) {
       case 'newest':
-        sorted.sort((a, b) => new Date(b.timestamp || Date.now()).getTime() - new Date(a.timestamp || Date.now()).getTime());
+        sorted.sort((a, b) => new Date(b.timestamp || b.date || Date.now()).getTime() - new Date(a.timestamp || a.date || Date.now()).getTime());
         break;
       case 'oldest':
-        sorted.sort((a, b) => new Date(a.timestamp || Date.now()).getTime() - new Date(b.timestamp || Date.now()).getTime());
+        sorted.sort((a, b) => new Date(a.timestamp || a.date || Date.now()).getTime() - new Date(b.timestamp || b.date || Date.now()).getTime());
         break;
       case 'name-asc':
         sorted.sort((a, b) => {
@@ -326,7 +326,7 @@ export default function ImprovedSearchPage({ tree }: ImprovedSearchPageProps) {
                         {title}
                       </h4>
                       <div className="flex items-center justify-between text-xs text-gray-400">
-                        <span>{new Date(memory.timestamp || Date.now()).toLocaleDateString()}</span>
+                        <span>{new Date(memory.timestamp || memory.date || Date.now()).toLocaleDateString()}</span>
                         {memory.tags.personIds.length > 0 && (
                           <span>{memory.tags.personIds.length} person{memory.tags.personIds.length !== 1 ? 's' : ''}</span>
                         )}

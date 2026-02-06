@@ -31,11 +31,23 @@ export function subscribeToMemoryTree(
   };
 
   // 1. Global Memories
+  const memoriesPath = `trees/${protocolKey}/memories`;
+  console.log(`[FIREBASE] Watching global memories at: ${memoriesPath}`);
   const globalUnsub = onSnapshot(collection(db, 'trees', protocolKey, 'memories'), (snap) => {
     const memories = snap.docs.map(m => {
       const d = m.data();
-      const photoUrl = d.photoUrl || d.downloadUrl || d.url || d.fileUrl || d.imageUrl || d.src || d.PhotoUrl || d.Url || d.Image;
-      const name = d.name || d.fileName || d.title || d.Title || d.Name || 'Artifact';
+      // Extremely aggressive field matching for diverse CLI outputs
+      const photoUrl = d.photoUrl || d.downloadUrl || d.url || d.fileUrl || d.imageUrl || d.src || 
+                       d.PhotoUrl || d.Url || d.Image || d.ImageUrl || d.MediaUrl || d.mediaUrl ||
+                       d.file_url || d.image_url || d.download_url ||
+                       d.media?.url || d.file?.url || d.storageUrl || d.storagePath || d.path;
+      
+      const name = d.name || d.fileName || d.title || d.Title || d.Name || d.filename || 'Artifact';
+      
+      if (!photoUrl) {
+        console.warn(`[FIREBASE] Artifact ${m.id} has no valid photo URL. Fields found:`, Object.keys(d));
+      }
+
       return {
         id: m.id,
         name: name,
@@ -53,6 +65,8 @@ export function subscribeToMemoryTree(
   }, (err) => onError && onError(err));
 
   // 2. People & Person-Specific Memories
+  const peoplePath = `trees/${protocolKey}/people`;
+  console.log(`[FIREBASE] Watching subjects at: ${peoplePath}`);
   const peopleUnsub = onSnapshot(collection(db, 'trees', protocolKey, 'people'), (peopleSnap) => {
     const people = peopleSnap.docs.map((doc) => ({
       id: doc.id,
@@ -70,8 +84,18 @@ export function subscribeToMemoryTree(
       const unsub = onSnapshot(collection(db, 'trees', protocolKey, 'people', person.id, 'memories'), (memSnap) => {
         const memories = memSnap.docs.map((m) => {
           const d = m.data();
-          const photoUrl = d.photoUrl || d.downloadUrl || d.url || d.fileUrl || d.imageUrl || d.src || d.PhotoUrl || d.Url || d.Image;
-          const name = d.name || d.fileName || d.title || d.Title || d.Name || 'Artifact';
+          // Extremely aggressive field matching for diverse CLI outputs
+          const photoUrl = d.photoUrl || d.downloadUrl || d.url || d.fileUrl || d.imageUrl || d.src || 
+                           d.PhotoUrl || d.Url || d.Image || d.ImageUrl || d.MediaUrl || d.mediaUrl ||
+                           d.file_url || d.image_url || d.download_url ||
+                           d.media?.url || d.file?.url || d.storageUrl || d.storagePath || d.path;
+          
+          const name = d.name || d.fileName || d.title || d.Title || d.Name || d.filename || 'Artifact';
+
+          if (!photoUrl) {
+            console.warn(`[FIREBASE] Artifact ${m.id} for person ${person.id} has no valid photo URL. Fields found:`, Object.keys(d));
+          }
+
           return {
             id: m.id,
             name: name,

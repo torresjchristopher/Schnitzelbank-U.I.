@@ -64,7 +64,11 @@ function App() {
           protocolKey: MURRAY_PROTOCOL_KEY,
           familyName: 'The Murray Family',
         };
-        localStorage.setItem('schnitzel_snapshot', JSON.stringify(next));
+        try {
+          localStorage.setItem('schnitzel_snapshot', JSON.stringify(next));
+        } catch (e) {
+          console.warn('Failed to cache snapshot to localStorage:', e);
+        }
         return next;
       });
       setConnectionError(null); 

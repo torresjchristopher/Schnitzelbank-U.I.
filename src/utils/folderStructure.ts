@@ -173,7 +173,7 @@ export function buildFolderStructure(tree: MemoryTree, familyBio: string = ''): 
     // Group by year
     const yearMap = new Map<number, Memory[]>();
     tree.memories.forEach((m) => {
-      const year = new Date(m.timestamp || Date.now()).getFullYear();
+      const year = new Date(m.timestamp || m.date || Date.now()).getFullYear();
       if (!yearMap.has(year)) {
         yearMap.set(year, []);
       }
@@ -194,7 +194,7 @@ export function buildFolderStructure(tree: MemoryTree, familyBio: string = ''): 
             const title = m.content.split('|DELIM|')[0] || 'Memory';
             return {
               id: m.id,
-              name: `${new Date(m.timestamp || Date.now()).toLocaleDateString()} - ${title}`,
+              name: `${new Date(m.timestamp || m.date || Date.now()).toLocaleDateString()} - ${title}`,
               type: 'memory',
               icon: getMemoryIcon(m.type),
               path: `/Timeline/${year}/${title}`,
