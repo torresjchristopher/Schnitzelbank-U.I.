@@ -136,7 +136,9 @@ class PersistenceServiceImpl {
         date: memory.date,
         description: memory.description || '',
         location: memory.location || '',
-        content: memory.content || ''
+        content: memory.content || '',
+        url: memory.photoUrl || '',       // Standardize on 'url'
+        photoUrl: memory.photoUrl || ''   // specific fallback
       }, { merge: true });
       
       console.log(`✅ Artifact ${memory.id} synchronized to cloud.`);
