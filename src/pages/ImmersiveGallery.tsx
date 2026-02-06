@@ -20,6 +20,7 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPerson, setFilterPerson] = useState('');
   const [isFlipped, setIsFlipped] = useState(false);
+  const [transitionDuration, setTransitionDuration] = useState(0.2);
   const [editingField, setEditingField] = useState<{ id: string, field: 'name' | 'year' } | null>(null);
   const [editValue, setEditValue] = useState('');
 
