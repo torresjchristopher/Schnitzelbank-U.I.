@@ -43,23 +43,24 @@ export function subscribeToMemoryTree(
                        d.media?.url || d.file?.url || d.storageUrl || d.storagePath || d.path;
       
       // Fallback: Check if URL is packed into content with |DELIM|
-      if (!photoUrl && d.content && d.content.includes('|DELIM|')) {
-        const parts = d.content.split('|DELIM|');
-        const possibleUrl = parts.find((p: string) => p.startsWith('http'));
-        if (possibleUrl) photoUrl = possibleUrl;
+      const content = d.content || d.Content || d.text || d.Text || d.description || d.Description || '';
+      if (!photoUrl && content && content.includes('|DELIM|')) {
+        const parts = content.split('|DELIM|');
+        const possibleUrl = parts.find((p: string) => p.trim().startsWith('http'));
+        if (possibleUrl) photoUrl = possibleUrl.trim();
       }
       
       const name = d.name || d.fileName || d.title || d.Title || d.Name || d.filename || 'Artifact';
       
       if (!photoUrl) {
-        console.warn(`[FIREBASE] Artifact ${m.id} has no valid photo URL. Fields found:`, Object.keys(d), d);
+        console.warn(`[FIREBASE] Artifact ${m.id} has no valid photo URL. Fields: ${Object.keys(d).join(', ')}`, JSON.stringify(d));
       }
 
       return {
         id: m.id,
         name: name,
         description: d.description || d.desc || d.notes || '',
-        content: d.content || d.text || '',
+        content: content,
         location: d.location || d.place || '',
         type: inferMemoryType(name),
         photoUrl: photoUrl || '/assets/IMG_4268.png', // Fallback to a valid local asset
@@ -98,23 +99,24 @@ export function subscribeToMemoryTree(
                            d.media?.url || d.file?.url || d.storageUrl || d.storagePath || d.path;
 
           // Fallback: Check if URL is packed into content with |DELIM|
-          if (!photoUrl && d.content && d.content.includes('|DELIM|')) {
-            const parts = d.content.split('|DELIM|');
-            const possibleUrl = parts.find((p: string) => p.startsWith('http'));
-            if (possibleUrl) photoUrl = possibleUrl;
+          const content = d.content || d.Content || d.text || d.Text || d.description || d.Description || '';
+          if (!photoUrl && content && content.includes('|DELIM|')) {
+            const parts = content.split('|DELIM|');
+            const possibleUrl = parts.find((p: string) => p.trim().startsWith('http'));
+            if (possibleUrl) photoUrl = possibleUrl.trim();
           }
           
           const name = d.name || d.fileName || d.title || d.Title || d.Name || d.filename || 'Artifact';
 
           if (!photoUrl) {
-            console.warn(`[FIREBASE] Artifact ${m.id} for person ${person.id} has no valid photo URL. Fields found:`, Object.keys(d), d);
+            console.warn(`[FIREBASE] Artifact ${m.id} for person ${person.id} has no valid photo URL. Fields: ${Object.keys(d).join(', ')}`, JSON.stringify(d));
           }
 
           return {
             id: m.id,
             name: name,
             description: d.description || d.desc || d.notes || '',
-            content: d.content || d.text || '',
+            content: content,
             location: d.location || d.place || '',
             type: inferMemoryType(name),
             photoUrl: photoUrl || '/assets/IMG_4268.png', // Fallback to a valid local asset
