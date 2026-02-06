@@ -22,9 +22,13 @@ const ResolvedImage = ({ src, alt, className }: { src: string, alt?: string, cla
              const path = match[0];
              const storageRef = ref(storage, path);
              const url = await getDownloadURL(storageRef);
-             if (mounted) setResolvedSrc(url);
+             if (mounted) {
+                 setResolvedSrc(url);
+                 setHasError(false);
+             }
           }
         } catch (e) {
+          console.error(`[RESOLVE] Failed to resolve URL for ${src}`, e);
           if (mounted) setHasError(true);
         }
       } else {
@@ -42,7 +46,10 @@ const ResolvedImage = ({ src, alt, className }: { src: string, alt?: string, cla
     src={hasError ? '/assets/IMG_4268.png' : resolvedSrc} 
     alt={alt} 
     className={className} 
-    onError={() => setHasError(true)} 
+    onError={() => {
+        console.warn(`[IMAGE_LOAD_ERROR] Failed to load: ${resolvedSrc}`);
+        setHasError(true);
+    }} 
   />;
 };
 
@@ -60,9 +67,13 @@ const ResolvedMotionImg = ({ src, className, ...props }: any) => {
              const path = match[0];
              const storageRef = ref(storage, path);
              const url = await getDownloadURL(storageRef);
-             if (mounted) setResolvedSrc(url);
+             if (mounted) {
+                 setResolvedSrc(url);
+                 setHasError(false);
+             }
           }
         } catch (e) { 
+            console.error(`[RESOLVE] Failed to resolve Motion URL for ${src}`, e);
             if (mounted) setHasError(true);
         }
       } else {
@@ -79,7 +90,10 @@ const ResolvedMotionImg = ({ src, className, ...props }: any) => {
   return <motion.img 
     src={hasError ? '/assets/IMG_4268.png' : resolvedSrc} 
     className={className} 
-    onError={() => setHasError(true)}
+    onError={() => {
+        console.warn(`[MOTION_IMAGE_LOAD_ERROR] Failed to load: ${resolvedSrc}`);
+        setHasError(true);
+    }}
     {...props} 
   />;
 };
