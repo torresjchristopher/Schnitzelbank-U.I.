@@ -19,6 +19,7 @@ export default function WebIngestor({ tree }: WebIngestorProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [status, setStatus] = useState<{ type: 'idle' | 'success' | 'error', message: string }>({ type: 'idle', message: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddPerson = async () => {
     if (!newPersonName.trim()) return;
@@ -37,7 +38,9 @@ export default function WebIngestor({ tree }: WebIngestorProps) {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setSelectedFiles(Array.from(e.target.files));
+      const newFiles = Array.from(e.target.files);
+      setSelectedFiles(prev => [...prev, ...newFiles]);
+      setStatus({ type: 'idle', message: '' });
     }
   };
 
@@ -128,9 +131,14 @@ export default function WebIngestor({ tree }: WebIngestorProps) {
 
         {/* UPLOAD BOX */}
         <section className="space-y-6">
-          <div className="flex items-center gap-4 text-white/30 uppercase text-[9px] font-black tracking-[0.3em]">
-            <Upload className="w-3 h-3" />
-            <span>Archive Fragments</span>
+          <div className="flex items-center justify-between text-white/30 uppercase text-[9px] font-black tracking-[0.3em]">
+            <div className="flex items-center gap-4">
+                <Upload className="w-3 h-3" />
+                <span>Archive Fragments</span>
+            </div>
+            {files.length > 0 && (
+                <button onClick={() => setSelectedFiles([])} className="hover:text-white transition-colors">Clear All</button>
+            )}
           </div>
           
           <div className="space-y-4">
@@ -146,24 +154,42 @@ export default function WebIngestor({ tree }: WebIngestorProps) {
               ))}
             </select>
 
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              className="group relative h-64 bg-white/[0.02] border-2 border-dashed border-white/5 hover:border-white/20 rounded-sm transition-all cursor-pointer flex flex-col items-center justify-center text-center p-10"
-            >
+            <div className="group relative h-64 bg-white/[0.02] border-2 border-dashed border-white/5 hover:border-white/20 rounded-sm transition-all flex flex-col items-center justify-center text-center p-10">
               <input 
                 type="file" 
                 ref={fileInputRef} 
                 onChange={handleFileUpload} 
                 multiple 
                 className="hidden" 
+              />
+              <input 
+                type="file" 
+                ref={folderInputRef} 
+                onChange={handleFileUpload} 
+                multiple 
+                className="hidden" 
                 {...( { webkitdirectory: "", directory: "" } as any)} 
               />
+              
               <Cloud className="w-10 h-10 text-white/10 mb-6 group-hover:text-white/30 transition-all" />
-              <div className="space-y-2">
+              <div className="space-y-6">
                 <p className="text-sm tracking-widest text-white/40 group-hover:text-white/60 transition-all uppercase font-bold">
-                  {files.length > 0 ? `${files.length} fragments selected` : 'Drop files or folders here'}
+                  {files.length > 0 ? `${files.length} fragments selected` : 'Select content to ingest'}
                 </p>
-                <p className="text-[9px] text-white/10 uppercase tracking-widest italic group-hover:text-white/20">Click to browse local buffer</p>
+                <div className="flex gap-4 justify-center">
+                    <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-6 py-2 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all"
+                    >
+                        Select Files
+                    </button>
+                    <button 
+                        onClick={() => folderInputRef.current?.click()}
+                        className="px-6 py-2 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all"
+                    >
+                        Select Folder
+                    </button>
+                </div>
               </div>
             </div>
 
