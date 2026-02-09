@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import { PersistenceService } from './services/PersistenceService';
@@ -12,11 +12,39 @@ import WebIngestor from './pages/WebIngestor';
 
 const MURRAY_PROTOCOL_KEY = "MURRAY_LEGACY_2026";
 
+// --- Theme Context ---
+type Theme = 'light' | 'dark';
+interface ThemeContextType {
+  theme: Theme;
+  toggleTheme: () => void;
+}
+export const ThemeContext = createContext<ThemeContextType>({ theme: 'light', toggleTheme: () => {} });
+export const useTheme = () => useContext(ThemeContext);
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('schnitzel_session') === 'active');
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
+  
+  // Theme State (Default to light as requested)
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem('schnitzel_theme');
+    return (saved as Theme) || 'light';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('schnitzel_theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   const [overrides, setOverrides] = useState<Record<string, { name?: string, date?: string }>>(() => {
     const saved = localStorage.getItem('schnitzel_overrides');
@@ -121,18 +149,20 @@ function App() {
   if (initError) return <div className="bg-black min-h-screen flex items-center justify-center p-12"><button onClick={() => { localStorage.clear(); window.location.reload(); }} className="bg-white text-black px-8 py-3 font-black">RESET VAULT</button></div>;
 
   return (
-    <HashRouter>
-      {!isAuthenticated ? (
-        <LandingPage onUnlock={handleUnlock} itemCount={memoryTree?.memories?.length || 0} error={connectionError} isSyncing={isSyncing} />
-      ) : (
-        <Routes>
-          <Route path="/" element={<Navigate to="/archive" replace />} />
-          <Route path="/archive" element={<ImmersiveGallery tree={memoryTree} onExport={handleExport} overrides={overrides} setOverrides={setOverrides} isSyncing={isSyncing} />} />
-          <Route path="/ingest" element={<WebIngestor tree={memoryTree} />} />
-          <Route path="*" element={<Navigate to="/archive" replace />} />
-        </Routes>
-      )}
-    </HashRouter>
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      <HashRouter>
+        {!isAuthenticated ? (
+          <LandingPage onUnlock={handleUnlock} itemCount={memoryTree?.memories?.length || 0} error={connectionError} isSyncing={isSyncing} />
+        ) : (
+          <Routes>
+            <Route path="/" element={<Navigate to="/archive" replace />} />
+            <Route path="/archive" element={<ImmersiveGallery tree={memoryTree} onExport={handleExport} overrides={overrides} setOverrides={setOverrides} isSyncing={isSyncing} />} />
+            <Route path="/ingest" element={<WebIngestor tree={memoryTree} />} />
+            <Route path="*" element={<Navigate to="/archive" replace />} />
+          </Routes>
+        )}
+      </HashRouter>
+    </ThemeContext.Provider>
   );
 }
 
