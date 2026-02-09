@@ -2,23 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #000000;
-  --foreground: #ffffff;
-  --primary: #FFC700;
-  --primary-foreground: #ffffff;
-  --border: #424242;
-}
 
 html {
   color-scheme: dark;
-  background-color: #000000;
-  color: #ffffff;
 }
 
 body {
-  background-color: #000000;
-  color: #ffffff;
   font-feature-settings: "rounding" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
