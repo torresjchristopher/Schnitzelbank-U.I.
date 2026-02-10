@@ -90,16 +90,27 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
       selectedChat.participants,
       currentFamily.slug,
       `${currentFamily.name.split(' ')[1]} // ${currentUser.name}`, 
-      inputText
+      inputText,
+      undefined,
+      currentUser.id
     );
     setInputText('');
   };
 
   const getChatName = (chat: ChatSession) => {
-    const otherId = chat.participants.find(id => id !== currentFamily.slug);
-    if (!otherId) return 'Protocol Hub';
-    if (otherId === 'GLOBAL_BROADCAST') return 'The Murray Family';
+    if (chat.participants.includes('GLOBAL_BROADCAST')) return 'The Murray Family (Global)';
     
+    // Find an ID that isn't the current user's person ID AND isn't the family slug
+    // But wait, participants usually contains [familySlug, otherId]
+    const otherId = chat.participants.find(id => id !== currentFamily.slug && id !== currentUser.id);
+    
+    if (!otherId) {
+        // If it's a chat with oneself or something went wrong
+        const selfCheck = chat.participants.filter(id => id === currentUser.id || id === currentFamily.slug);
+        if (selfCheck.length > 0) return 'Personal Vault';
+        return 'Protocol Hub';
+    }
+
     // Check if it's a person in our tree
     const person = tree.people.find(p => p.id === otherId);
     if (person) return person.name;
@@ -205,15 +216,15 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-10 space-y-8 custom-scrollbar">
                     {messages.map((m, i) => (
-                        <div key={i} className={`flex flex-col ${m.senderId === currentFamily.slug ? 'items-end' : 'items-start'}`}>
+                        <div key={i} className={`flex flex-col ${m.senderPersonId === currentUser.id ? 'items-end' : 'items-start'}`}>
                             <div className="flex items-center gap-3 mb-1 px-1">
                                 <span className="text-[7px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.2em]">{m.senderName}</span>
                                 <span className="text-[6px] text-gray-200 dark:text-white/5 uppercase tracking-tighter">{m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString() : ''}</span>
                             </div>
-                            <div className={`max-w-[70%] p-4 rounded-sm text-[11px] leading-relaxed shadow-sm ${
-                                m.senderId === currentFamily.slug 
-                                ? 'bg-emerald-500 text-white selection:bg-black/20' 
-                                : 'bg-white dark:bg-white/5 text-gray-900 dark:text-white border border-gray-100 dark:border-white/5'
+                            <div className={`max-w-[70%] p-4 rounded-sm text-[11px] font-black leading-relaxed shadow-sm ${
+                                m.senderPersonId === currentUser.id 
+                                ? 'bg-emerald-500 text-black selection:bg-black/20' 
+                                : 'bg-white text-black border border-gray-100'
                             }`}>
                                 {m.text}
                                 {m.artifactId && (
@@ -221,8 +232,8 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
                                         className="mt-3 p-2 bg-black/10 rounded-sm flex items-center gap-3 cursor-pointer hover:bg-black/20 transition-all border border-white/10"
                                         onClick={() => navigate(`${slugPrefix}/archive?artifact=${m.artifactId}`)}
                                     >
-                                        <Paperclip className="w-3 h-3 text-white/60" />
-                                        <span className="text-[8px] font-black uppercase tracking-widest text-white/80">LINKED ARTIFACT: {m.artifactName || 'MEM'}</span>
+                                        <Paperclip className="w-3 h-3 text-black/60" />
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-black/80">LINKED ARTIFACT: {m.artifactName || 'MEM'}</span>
                                     </div>
                                 )}
                             </div>

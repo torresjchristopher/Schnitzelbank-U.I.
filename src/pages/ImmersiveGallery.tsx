@@ -233,6 +233,11 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
 
   const currentMemory = filteredMemories[currentIndex] || null;
 
+  const attachedArtifact = useMemo(() => {
+    if (!currentMemory) return undefined;
+    return { id: currentMemory.id, name: currentMemory.name };
+  }, [currentMemory?.id, currentMemory?.name]);
+
   useEffect(() => {
     const clearTimers = () => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -574,7 +579,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                                 currentFamily={currentFamily} 
                                 currentUser={currentUser} 
                                 people={tree.people} 
-                                attachedArtifact={currentMemory ? { id: currentMemory.id, name: currentMemory.name } : undefined} 
+                                attachedArtifact={attachedArtifact} 
                                 onSelectArtifact={handleSelectArtifactFromChat} 
                                 isNoteMode={noteMode}
                             />
@@ -629,15 +634,15 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                       <button 
                         onClick={(e) => { 
                             e.stopPropagation(); 
-                            const targetPersonId = filterPerson || currentUser.id;
+                            const targetPersonId = m.tags?.personIds?.[0] || filterPerson || currentUser.id;
                             if (targetPersonId) {
                                 PersistenceService.getInstance().toggleFavorite(m, targetPersonId, tree.protocolKey || 'MURRAY_LEGACY_2026');
                             }
                         }} 
-                        className={`absolute top-2 left-2 p-2 rounded-full transition-all z-20 ${(filterPerson || currentUser.id) && m.tags?.favoriteForPersonIds?.includes(filterPerson || currentUser.id) ? 'text-emerald-500 opacity-100' : 'text-white/50 opacity-0 group-hover:opacity-100 hover:text-emerald-400'}`}
+                        className={`absolute top-2 left-2 p-2 rounded-full transition-all z-20 ${((m.tags?.personIds?.[0] || filterPerson || currentUser.id)) && m.tags?.favoriteForPersonIds?.includes(m.tags?.personIds?.[0] || filterPerson || currentUser.id) ? 'text-emerald-500 opacity-100' : 'text-white/50 opacity-0 group-hover:opacity-100 hover:text-emerald-400'}`}
                         title="Toggle Favorite"
                       >
-                        <Star className={`w-4 h-4 ${(filterPerson || currentUser.id) && m.tags?.favoriteForPersonIds?.includes(filterPerson || currentUser.id) ? 'fill-emerald-500' : ''}`} />
+                        <Star className={`w-4 h-4 ${((m.tags?.personIds?.[0] || filterPerson || currentUser.id)) && m.tags?.favoriteForPersonIds?.includes(m.tags?.personIds?.[0] || filterPerson || currentUser.id) ? 'fill-emerald-500' : ''}`} />
                       </button>
 
                       <button onClick={(e) => { e.stopPropagation(); toggleSelection(m.id); }} className={`absolute top-2 right-2 p-2 rounded-full transition-all z-20 ${selectedIds.has(m.id) ? 'bg-emerald-500 text-white opacity-100' : 'bg-black/50 text-white/50 opacity-0 group-hover:opacity-100 hover:bg-black/80 hover:text-white'}`}>{selectedIds.has(m.id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}</button>
