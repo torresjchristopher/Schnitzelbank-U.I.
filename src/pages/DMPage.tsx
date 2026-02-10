@@ -25,9 +25,37 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
   const chatService = ChatService.getInstance();
 
   useEffect(() => {
-    const unsub = chatService.subscribeToAllChats(currentFamily.slug, setChats);
-    return unsub;
-  }, [currentFamily.slug]);
+    let familyChats: ChatSession[] = [];
+    let globalChats: ChatSession[] = [];
+
+    const updateCombined = () => {
+        const combined = [...familyChats, ...globalChats];
+        // Deduplicate by ID
+        const unique = Array.from(new Map(combined.map(c => [c.id, c])).values());
+        // Sort locally
+        unique.sort((a, b) => {
+            const timeA = a.updatedAt?.seconds || 0;
+            const timeB = b.updatedAt?.seconds || 0;
+            return timeB - timeA;
+        });
+        setChats(unique);
+    };
+
+    const unsubFamily = chatService.subscribeToAllChats(currentFamily.slug, (cs) => {
+        familyChats = cs;
+        updateCombined();
+    });
+
+    const unsubGlobal = chatService.subscribeToGlobalBroadcasts((cs) => {
+        globalChats = cs;
+        updateCombined();
+    });
+
+    return () => {
+        unsubFamily();
+        unsubGlobal();
+    };
+  }, [currentFamily.slug, currentUser.id]);
 
   useEffect(() => {
     if (selectedChat) {

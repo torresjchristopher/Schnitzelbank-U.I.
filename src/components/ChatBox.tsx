@@ -93,7 +93,14 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
     const hasAttachment = (attachedArtifact && isLinkingActive) || isNoteMode;
     if ((!inputText.trim() && !hasAttachment) || participants.length === 0) return;
 
-    const pIds = isNoteMode ? [currentFamily.slug] : [currentFamily.slug, ...participants.map(p => p.id)];
+    // Ensure BOTH the family slug and the current person ID are in participants
+    // plus anyone else selected.
+    const pIds = Array.from(new Set([
+        currentFamily.slug, 
+        currentUser.id, 
+        ...participants.map(p => p.id)
+    ]));
+
     await chatService.sendMessage(
       pIds,
       currentFamily.slug,

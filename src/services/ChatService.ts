@@ -142,7 +142,7 @@ export class ChatService {
   subscribeToAllChats(participantId: string, onUpdate: (chats: ChatSession[]) => void) {
     const q = query(
       collection(db, 'chats'),
-      where('participants', 'array-contains-any', [participantId, 'GLOBAL_BROADCAST'])
+      where('participants', 'array-contains', participantId)
     );
 
     return onSnapshot(q, (snapshot) => {
@@ -158,6 +158,23 @@ export class ChatService {
         return timeB - timeA;
       });
       
+      onUpdate(chats);
+    }, (error) => {
+        console.error("Chat subscription failed:", error);
+    });
+  }
+
+  subscribeToGlobalBroadcasts(onUpdate: (chats: ChatSession[]) => void) {
+    const q = query(
+      collection(db, 'chats'),
+      where('participants', 'array-contains', 'GLOBAL_BROADCAST')
+    );
+
+    return onSnapshot(q, (snapshot) => {
+      const chats = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as ChatSession[];
       onUpdate(chats);
     });
   }
