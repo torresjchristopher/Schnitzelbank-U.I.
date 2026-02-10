@@ -9,8 +9,6 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../App';
 import JSZip from 'jszip';
 import { ChatBox } from '../components/ChatBox';
-import { ChatService } from '../services/ChatService';
-import type { ChatMessage } from '../services/ChatService';
 
 // --- VIDEO PLAYER COMPONENT ---
 const CustomVideoPlayer = ({ src, autoPlay, onEnded, className }: { src: string, autoPlay?: boolean, onEnded?: () => void, className?: string }) => {
@@ -121,36 +119,6 @@ const ResolvedImage = ({ src, alt, className }: { src: string, alt?: string, cla
     return () => { mounted = false; };
   }, [src]);
   return <img src={resolvedSrc} alt={alt} className={className} />;
-};
-
-// --- NOTE STREAM COMPONENT ---
-const NoteStream = ({ artifactId }: { artifactId: string }) => {
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    
-    useEffect(() => {
-        if (!artifactId) return;
-        return ChatService.getInstance().subscribeToArtifactMessages(artifactId, setMessages);
-    }, [artifactId]);
-
-    return (
-        <div className="flex flex-col gap-4">
-            {messages.length === 0 ? (
-                <p className="text-[8px] font-black uppercase tracking-widest text-black/20 text-center py-10 italic">No notes linked to this memory.</p>
-            ) : (
-                messages.map((m, i) => (
-                    <div key={i} className="flex flex-col gap-1 border-l-2 border-emerald-500/20 pl-3 py-1">
-                        <div className="flex justify-between items-center opacity-40">
-                            <span className="text-[7px] font-black text-black uppercase tracking-widest">{m.senderName}</span>
-                            <span className="text-[6px] text-black uppercase tracking-tighter">{m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString() : ''}</span>
-                        </div>
-                        <p className="text-[10px] font-serif italic text-black leading-relaxed">
-                            {m.text}
-                        </p>
-                    </div>
-                ))
-            )}
-        </div>
-    );
 };
 
 interface ImmersiveGalleryProps {
@@ -604,31 +572,9 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
               <AnimatePresence>
                 {showUi && (
                   <div className="absolute inset-0 z-30 pointer-events-none">
-                    {/* CHAT HUD - BOTTOM LEFT/CENTER */}
+                    {/* CHAT HUD - BOTTOM LEFT */}
                     {viewMode === 'theatre' && (
-                        <div 
-                            className={`absolute bottom-8 left-8 pointer-events-auto flex items-end gap-6 transition-all duration-500 ${noteMode ? 'max-w-[80vw]' : ''}`} 
-                            onMouseEnter={() => setIsUiLocked(true)} 
-                            onMouseLeave={() => setIsUiLocked(false)}
-                        >
-                            {/* Notes List (Visible only in Note Mode, to the left of the submission box) */}
-                            {noteMode && (
-                                <motion.div 
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    className="w-80 max-h-[40vh] overflow-y-auto bg-white/10 dark:bg-black/20 backdrop-blur-md p-6 rounded-sm border border-black/5 flex flex-col gap-4 no-scrollbar"
-                                >
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <StickyNote className="w-3 h-3 text-emerald-500" />
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black">Artifact Notes</span>
-                                    </div>
-                                    {/* The messages are actually handled by ChatBox's internal stream if we don't hide it, 
-                                        but the user wants it specifically to the left. 
-                                        We'll let ChatBox handle the submission, and we'll render the stream here. */}
-                                    <NoteStream artifactId={currentMemory?.id || ''} />
-                                </motion.div>
-                            )}
-
+                        <div className="absolute bottom-8 left-8 pointer-events-auto" onMouseEnter={() => setIsUiLocked(true)} onMouseLeave={() => setIsUiLocked(false)}>
                             <ChatBox 
                                 currentFamily={currentFamily} 
                                 currentUser={currentUser} 

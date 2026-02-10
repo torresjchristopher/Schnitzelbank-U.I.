@@ -19,10 +19,14 @@ service cloud.firestore {
     }
 
     // 4. Collection Group Rules for Artifact Annotations
-    // We match the specific collection name for group queries
+    // REQUIRED: Match the collection name explicitly for collection group queries
+    match /messages/{messageId} {
+      allow read, write: if true;
+    }
+    
+    // Recursive match for nested messages
     match /{path=**}/messages/{messageId} {
-      allow read: if true;
-      allow write: if true;
+      allow read, write: if true;
     }
   }
 }
