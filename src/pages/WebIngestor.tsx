@@ -9,9 +9,10 @@ import type { MemoryTree } from '../types';
 
 interface WebIngestorProps {
   tree: MemoryTree;
+  currentFamily: { name: string, slug: string, protocolKey: string };
 }
 
-export default function WebIngestor({ tree }: WebIngestorProps) {
+export default function WebIngestor({ tree, currentFamily }: WebIngestorProps) {
   const navigate = useNavigate();
   const [newPersonName, setNewPersonName] = useState('');
   const [selectedPersonId, setSelectedPersonId] = useState('');
@@ -24,7 +25,7 @@ export default function WebIngestor({ tree }: WebIngestorProps) {
   const handleAddPerson = async () => {
     if (!newPersonName.trim()) return;
     try {
-      const docRef = await addDoc(collection(db, 'trees', 'MURRAY_LEGACY_2026', 'people'), {
+      const docRef = await addDoc(collection(db, 'trees', currentFamily.protocolKey, 'people'), {
         name: newPersonName.trim(),
         createdAt: serverTimestamp(),
       });
@@ -61,13 +62,21 @@ export default function WebIngestor({ tree }: WebIngestorProps) {
 
         // 2. Save Metadata to Firestore
         const memoryRef = selectedPersonId === 'FAMILY_ROOT' 
-          ? collection(db, 'trees', 'MURRAY_LEGACY_2026', 'memories')
-          : collection(db, 'trees', 'MURRAY_LEGACY_2026', 'people', selectedPersonId, 'memories');
+          ? collection(db, 'trees', currentFamily.protocolKey, 'memories')
+          : collection(db, 'trees', currentFamily.protocolKey, 'people', selectedPersonId, 'memories');
+
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        let type = 'image';
+        if (ext === 'pdf') type = 'pdf';
+        else if (['doc', 'docx'].includes(ext || '')) type = 'document';
+        else if (ext === 'txt') type = 'text';
+        else if (['mp4', 'mov', 'webm', 'm4v'].includes(ext || '')) type = 'video';
 
         await addDoc(memoryRef, {
           name: file.name,
           url: downloadUrl,
           photoUrl: downloadUrl,
+          type: type,
           uploadedAt: new Date().toISOString(),
           date: new Date().toISOString(),
           description: '',
@@ -94,12 +103,12 @@ export default function WebIngestor({ tree }: WebIngestorProps) {
       
       {/* HEADER */}
       <header className="fixed top-0 left-0 right-0 z-50 px-10 py-8 flex justify-between items-center border-b border-gray-200 dark:border-white/5 bg-white/80 dark:bg-black/50 backdrop-blur-2xl transition-colors">
-        <button onClick={() => navigate('/archive')} className="p-3 bg-white dark:bg-white/5 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-all border border-gray-200 dark:border-white/5 group shadow-sm">
+        <button onClick={() => navigate(-1)} className="p-3 bg-white dark:bg-white/5 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-all border border-gray-200 dark:border-white/5 group shadow-sm">
           <ArrowLeft className="w-5 h-5 text-gray-400 dark:text-white/40 group-hover:text-black dark:group-hover:text-white" />
         </button>
         <div className="text-center flex flex-col items-center">
           <span className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.5em] mb-1 italic">Sovereign Upload</span>
-          <h1 className="text-2xl font-bold tracking-tighter uppercase italic">Upload</h1>
+          <h1 className="text-2xl font-bold tracking-tighter uppercase italic">{currentFamily.name.split(' ')[1]} Upload</h1>
         </div>
         <div className="w-12"></div>
       </header>
@@ -148,7 +157,7 @@ export default function WebIngestor({ tree }: WebIngestorProps) {
               className="w-full bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-sm px-6 py-4 text-sm tracking-widest focus:ring-0 focus:border-gray-400 dark:focus:border-white/30 transition-all appearance-none cursor-pointer text-gray-600 dark:text-white/60"
             >
               <option value="" className="bg-white dark:bg-black">SELECT SUBJECT...</option>
-              <option value="FAMILY_ROOT" className="bg-white dark:bg-black text-black dark:text-white font-bold">MURRAY ARCHIVE (GLOBAL)</option>
+              <option value="FAMILY_ROOT" className="bg-white dark:bg-black text-black dark:text-white font-bold">{currentFamily.name.toUpperCase()} (GLOBAL)</option>
               {tree.people.filter(p => p.id !== 'FAMILY_ROOT').map(p => (
                 <option key={p.id} value={p.id} className="bg-white dark:bg-black text-black dark:text-white">{p.name.toUpperCase()}</option>
               ))}
@@ -179,13 +188,13 @@ export default function WebIngestor({ tree }: WebIngestorProps) {
                 <div className="flex gap-4 justify-center">
                     <button 
                         onClick={() => fileInputRef.current?.click()}
-                        className="px-6 py-2 border border-gray-300 dark:border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all"
+                        className="px-6 py-2 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all"
                     >
                         Select Files
                     </button>
                     <button 
                         onClick={() => folderInputRef.current?.click()}
-                        className="px-6 py-2 border border-gray-300 dark:border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all"
+                        className="px-6 py-2 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all"
                     >
                         Select Folder
                     </button>

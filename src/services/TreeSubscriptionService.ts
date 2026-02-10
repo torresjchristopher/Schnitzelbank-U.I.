@@ -17,7 +17,8 @@ function inferMemoryType(fileName: string): MemoryType {
 export function subscribeToMemoryTree(
   protocolKey: string,
   onUpdate: (partial: Partial<MemoryTree>) => void,
-  onError?: (error: any) => void
+  onError?: (error: any) => void,
+  customRootName?: string
 ): Unsubscribe {
   console.log(`[FIREBASE] Initializing Archival Stream...`);
   
@@ -26,24 +27,18 @@ export function subscribeToMemoryTree(
 
   const updateCombinedMemories = () => {
     const combined = Array.from(memoriesBySource.values()).flat();
-    console.log(`[FIREBASE] Total fragments discovered: ${combined.length}`);
     onUpdate({ memories: combined });
   };
 
   // 1. Global Memories
-  const memoriesPath = `trees/${protocolKey}/memories`;
-  console.log(`[FIREBASE] Watching global memories at: ${memoriesPath}`);
   const globalUnsub = onSnapshot(collection(db, 'trees', protocolKey, 'memories'), (snap) => {
     const memories = snap.docs.map(m => {
       const d = m.data();
-      console.log(`[FIREBASE] Global Artifact Discovered: ${m.id}`, d);
-      // Extremely aggressive field matching for diverse CLI outputs
       let photoUrl = d.photoUrl || d.downloadUrl || d.url || d.fileUrl || d.imageUrl || d.src || 
                        d.PhotoUrl || d.Url || d.Image || d.ImageUrl || d.MediaUrl || d.mediaUrl ||
                        d.file_url || d.image_url || d.download_url ||
                        d.media?.url || d.file?.url || d.storageUrl || d.storagePath || d.path;
       
-      // Fallback: Check if URL is packed into content with |DELIM|
       const content = d.content || d.Content || d.text || d.Text || d.description || d.Description || '';
       if (!photoUrl && content && content.includes('|DELIM|')) {
         const parts = content.split('|DELIM|');
@@ -52,10 +47,6 @@ export function subscribeToMemoryTree(
       }
       
       const name = d.name || d.fileName || d.title || d.Title || d.Name || d.filename || 'Artifact';
-      
-      if (!photoUrl) {
-        console.warn(`[FIREBASE] Artifact ${m.id} has no valid photo URL. Fields: ${Object.keys(d).join(', ')}`, JSON.stringify(d));
-      }
 
       return {
         id: m.id,
@@ -64,7 +55,7 @@ export function subscribeToMemoryTree(
         content: content,
         location: d.location || d.place || '',
         type: inferMemoryType(name),
-        photoUrl: photoUrl || '/assets/IMG_4268.png', // Fallback to a valid local asset
+        photoUrl: photoUrl || '/assets/IMG_4268.png',
         date: d.date || d.timestamp?.toDate?.()?.toISOString() || d.createdAt || new Date().toISOString(),
         tags: d.tags || { personIds: [FAMILY_ROOT_ID], isFamilyMemory: true },
       } as Memory;
@@ -74,8 +65,6 @@ export function subscribeToMemoryTree(
   }, (err) => onError && onError(err));
 
   // 2. People & Person-Specific Memories
-  const peoplePath = `trees/${protocolKey}/people`;
-  console.log(`[FIREBASE] Watching subjects at: ${peoplePath}`);
   const peopleUnsub = onSnapshot(collection(db, 'trees', protocolKey, 'people'), (peopleSnap) => {
     const people = peopleSnap.docs.map((doc) => ({
       id: doc.id,
@@ -83,8 +72,7 @@ export function subscribeToMemoryTree(
       ...doc.data(),
     })) as Person[];
 
-    console.log(`[FIREBASE] Subjects found: ${people.length}`);
-    onUpdate({ people: [{ id: FAMILY_ROOT_ID, name: 'Murray Archive' }, ...people] });
+    onUpdate({ people: [{ id: FAMILY_ROOT_ID, name: customRootName || 'Archive Root' }, ...people] });
 
     memoryUnsubs.forEach((u) => u());
     memoryUnsubs = [];
@@ -98,20 +86,13 @@ export function subscribeToMemoryTree(
                          d.file_url || d.image_url || d.download_url ||
                          d.media?.url || d.file?.url || d.storageUrl || d.storagePath || d.path;
 
-        const content = d.content || d.Content || d.text || d.Text || d.description || d.Description || '';
-        if (!photoUrl && content && content.includes('|DELIM|')) {
-          const parts = content.split('|DELIM|');
-          const possibleUrl = parts.find((p: string) => p.trim().startsWith('http'));
-          if (possibleUrl) photoUrl = possibleUrl.trim();
-        }
-        
         const name = d.name || d.fileName || d.title || d.Title || d.Name || d.filename || 'Artifact';
 
         return {
           id: m.id,
           name: name,
           description: d.description || d.desc || d.notes || '',
-          content: content,
+          content: d.content || '',
           location: d.location || d.place || '',
           type: inferMemoryType(name),
           photoUrl: photoUrl || '/assets/IMG_4268.png',
@@ -129,35 +110,21 @@ export function subscribeToMemoryTree(
       const unsub = onSnapshot(collection(db, 'trees', protocolKey, 'people', person.id, 'memories'), (memSnap) => {
         const memories = memSnap.docs.map((m) => {
           const d = m.data();
-          console.log(`[FIREBASE] Person Artifact Discovered: ${m.id} (Owner: ${person.name})`, d);
-          // Extremely aggressive field matching for diverse CLI outputs
           let photoUrl = d.photoUrl || d.downloadUrl || d.url || d.fileUrl || d.imageUrl || d.src || 
                            d.PhotoUrl || d.Url || d.Image || d.ImageUrl || d.MediaUrl || d.mediaUrl ||
                            d.file_url || d.image_url || d.download_url ||
                            d.media?.url || d.file?.url || d.storageUrl || d.storagePath || d.path;
 
-          // Fallback: Check if URL is packed into content with |DELIM|
-          const content = d.content || d.Content || d.text || d.Text || d.description || d.Description || '';
-          if (!photoUrl && content && content.includes('|DELIM|')) {
-            const parts = content.split('|DELIM|');
-            const possibleUrl = parts.find((p: string) => p.trim().startsWith('http'));
-            if (possibleUrl) photoUrl = possibleUrl.trim();
-          }
-          
           const name = d.name || d.fileName || d.title || d.Title || d.Name || d.filename || 'Artifact';
-
-          if (!photoUrl) {
-            console.warn(`[FIREBASE] Artifact ${m.id} for person ${person.id} has no valid photo URL. Fields: ${Object.keys(d).join(', ')}`, JSON.stringify(d));
-          }
 
           return {
             id: m.id,
             name: name,
             description: d.description || d.desc || d.notes || '',
-            content: content,
+            content: d.content || '',
             location: d.location || d.place || '',
             type: inferMemoryType(name),
-            photoUrl: photoUrl || '/assets/IMG_4268.png', // Fallback to a valid local asset
+            photoUrl: photoUrl || '/assets/IMG_4268.png',
             date: d.date || d.timestamp?.toDate?.()?.toISOString() || d.createdAt || new Date().toISOString(),
             tags: d.tags || { personIds: [person.id], isFamilyMemory: false },
           } as Memory;

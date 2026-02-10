@@ -3,13 +3,14 @@ import { Lock, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface LandingPageProps {
-  onUnlock: () => void;
+  onUnlock: (password: string) => Promise<boolean>;
   itemCount?: number;
   error?: string | null;
   isSyncing?: boolean;
+  familyName?: string;
 }
 
-export default function LandingPage({ onUnlock, itemCount = 0, error = null, isSyncing = false }: LandingPageProps) {
+export default function LandingPage({ onUnlock, itemCount = 0, error = null, isSyncing = false, familyName }: LandingPageProps) {
   const [password, setPassword] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isTimedOut, setIsTimedOut] = useState(false);
@@ -17,13 +18,19 @@ export default function LandingPage({ onUnlock, itemCount = 0, error = null, isS
 
   // Auto-skip logic for Autofill or Fast Typing
   useEffect(() => {
-    if (password === 'Jackson_Heights') {
-      onUnlock();
-    } else if (password.length > 0) {
-      setIsTyping(true);
-    } else {
-      setIsTyping(false);
+    const check = async () => {
+        if (password === 'Jackson_Heights' || password.length >= 6) {
+            const success = await onUnlock(password);
+            if (!success) {
+                setIsTyping(true);
+            }
+        } else if (password.length > 0) {
+            setIsTyping(true);
+        } else {
+            setIsTyping(false);
+        }
     }
+    check();
   }, [password, onUnlock]);
 
   useEffect(() => {
@@ -107,7 +114,7 @@ export default function LandingPage({ onUnlock, itemCount = 0, error = null, isS
           </div>
         )}
         <div className="text-gray-300 dark:text-white/10 uppercase tracking-[0.3em] font-black mt-2">
-          The Murray Family Protocol // Schnitzelbank Website // Obsidian Edition
+          {familyName || 'The Murray Family Protocol'} // Schnitzelbank Website // Obsidian Edition
         </div>
       </motion.div>
 

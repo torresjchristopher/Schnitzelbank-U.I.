@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Lock, Edit3, Database, Sun, Moon, CheckSquare, Square } from 'lucide-react';
-import type { MemoryTree, Memory } from '../types';
+import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Lock, Database, Sun, Moon, Play, Pause, CheckSquare, Square, Volume2, VolumeX, Users, PenTool, Type, X, Terminal, AlignLeft, BookOpen, MessageCircle, StickyNote } from 'lucide-react';
+import type { MemoryTree, Memory, Person } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PersistenceService } from '../services/PersistenceService';
 import { ref, getDownloadURL } from 'firebase/storage';
@@ -8,108 +8,134 @@ import { storage } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../App';
 import JSZip from 'jszip';
+import { ChatBox } from '../components/ChatBox';
+import { ChatService } from '../services/ChatService';
+import type { ChatMessage } from '../services/ChatService';
+import { AnnotationStream } from '../components/AnnotationStream';
 
-// --- IMAGE COMPONENT FOR GCS RESOLUTION ---
-const ResolvedImage = ({ src, alt, className }: { src: string, alt?: string, className?: string }) => {
-  const [resolvedSrc, setResolvedSrc] = useState(src);
-  const [hasError, setHasError] = useState(false);
+// --- VIDEO PLAYER COMPONENT ---
+const CustomVideoPlayer = ({ src, autoPlay, onEnded, className }: { src: string, autoPlay?: boolean, onEnded?: () => void, className?: string }) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [isPlaying, setIsPlaying] = useState(autoPlay);
+    const [progress, setProgress] = useState(0);
+    const [isMuted, setIsMuted] = useState(false);
+    const [showControls, setShowControls] = useState(false);
+    const [resolvedSrc, setResolvedSrc] = useState(src);
 
-  useEffect(() => {
-    let mounted = true;
-    const resolve = async () => {
-      if (src && src.includes('storage.googleapis.com')) {
-        try {
-          const match = src.match(/artifacts\/.+/);
-          if (match) {
-             const path = match[0];
-             const storageRef = ref(storage, path);
-             const url = await getDownloadURL(storageRef);
-             if (mounted) {
-                 setResolvedSrc(url);
-                 setHasError(false);
-             }
-          }
-        } catch (e) {
-          console.error(`[RESOLVE] Failed to resolve URL for ${src}`, e);
-          if (mounted) setHasError(true);
+    useEffect(() => {
+        let mounted = true;
+        const resolve = async () => {
+            if (src.includes('storage.googleapis.com')) {
+                const match = src.match(/artifacts\/.+/);
+                if (match) {
+                    try {
+                        const url = await getDownloadURL(ref(storage, match[0]));
+                        if (mounted) setResolvedSrc(url);
+                    } catch (e) { console.error("Video resolve failed", e); }
+                }
+            }
+        };
+        resolve();
+        return () => { mounted = false; };
+    }, [src]);
+
+    const togglePlay = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        if (videoRef.current) {
+            if (isPlaying) videoRef.current.pause();
+            else videoRef.current.play();
+            setIsPlaying(!isPlaying);
         }
-      } else {
-        if (mounted) {
-            setResolvedSrc(src);
-            setHasError(false);
-        }
-      }
     };
-    resolve();
-    return () => { mounted = false; };
-  }, [src]);
 
-  return <img 
-    src={hasError ? '/assets/IMG_4268.png' : resolvedSrc} 
-    alt={alt} 
-    className={className} 
-    onError={() => {
-        console.warn(`[IMAGE_LOAD_ERROR] Failed to load: ${resolvedSrc}`);
-        setHasError(true);
-    }} 
-  />;
+    const toggleMute = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (videoRef.current) {
+            videoRef.current.muted = !videoRef.current.muted;
+            setIsMuted(videoRef.current.muted);
+        }
+    };
+
+    useEffect(() => {
+        const handleSpace = (e: KeyboardEvent) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                togglePlay();
+            }
+        };
+        window.addEventListener('keydown', handleSpace);
+        return () => window.removeEventListener('keydown', handleSpace);
+    }, [isPlaying]);
+
+    const handleTimeUpdate = () => {
+        if (videoRef.current) {
+            const p = (videoRef.current.currentTime / videoRef.current.duration) * 100;
+            setProgress(p);
+        }
+    };
+
+    const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+        e.stopPropagation();
+        if (videoRef.current) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const pos = (e.clientX - rect.left) / rect.width;
+            videoRef.current.currentTime = pos * videoRef.current.duration;
+            setProgress(pos * 100);
+        }
+    };
+
+    return (
+        <div className={`relative group ${className}`} onMouseEnter={() => setShowControls(true)} onMouseLeave={() => setShowControls(false)} onClick={() => togglePlay()}>
+            <video ref={videoRef} src={resolvedSrc} className="w-full h-full object-contain bg-black" autoPlay={autoPlay} onEnded={() => { setIsPlaying(false); onEnded && onEnded(); }} onTimeUpdate={handleTimeUpdate} />
+            <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${!isPlaying || showControls ? 'opacity-100' : 'opacity-0'}`}>
+                <div className="bg-black/40 backdrop-blur-sm p-4 rounded-full border border-white/10">
+                    {isPlaying ? <Pause className="w-8 h-8 text-white" fill="white" /> : <Play className="w-8 h-8 text-white ml-1" fill="white" />}
+                </div>
+            </div>
+            <div className="absolute bottom-4 left-4 right-4 flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+                <div className="flex-1 h-8 flex items-center cursor-pointer group/bar relative" onMouseDown={handleSeek}>
+                    <div className="absolute inset-0 flex items-center"><div className="w-full h-1 bg-white/30 rounded-full overflow-hidden group-hover/bar:h-1.5 transition-all"><div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" style={{ width: `${progress}%` }} /></div></div>
+                </div>
+                <button onClick={toggleMute} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white flex-shrink-0">{isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}</button>
+            </div>
+        </div>
+    );
 };
 
-const ResolvedMotionImg = ({ src, className, ...props }: any) => {
+// --- IMAGE COMPONENT ---
+const ResolvedImage = ({ src, alt, className }: { src: string, alt?: string, className?: string }) => {
   const [resolvedSrc, setResolvedSrc] = useState(src);
-  const [hasError, setHasError] = useState(false);
-
   useEffect(() => {
     let mounted = true;
     const resolve = async () => {
-      if (src && src.includes('storage.googleapis.com')) {
-        try {
-          const match = src.match(/artifacts\/.+/);
-          if (match) {
-             const path = match[0];
-             const storageRef = ref(storage, path);
-             const url = await getDownloadURL(storageRef);
-             if (mounted) {
-                 setResolvedSrc(url);
-                 setHasError(false);
-             }
-          }
-        } catch (e) { 
-            console.error(`[RESOLVE] Failed to resolve Motion URL for ${src}`, e);
-            if (mounted) setHasError(true);
-        }
-      } else {
-        if (mounted) {
-            setResolvedSrc(src);
-            setHasError(false);
+      if (src.includes('storage.googleapis.com')) {
+        const match = src.match(/artifacts\/.+/);
+        if (match) {
+          try {
+            const url = await getDownloadURL(ref(storage, match[0]));
+            if (mounted) setResolvedSrc(url);
+          } catch (e) {}
         }
       }
     };
     resolve();
     return () => { mounted = false; };
   }, [src]);
-
-  return <motion.img 
-    src={hasError ? '/assets/IMG_4268.png' : resolvedSrc} 
-    className={className} 
-    onError={() => {
-        console.warn(`[MOTION_IMAGE_LOAD_ERROR] Failed to load: ${resolvedSrc}`);
-        setHasError(true);
-    }}
-    {...props} 
-  />;
+  return <img src={resolvedSrc} alt={alt} className={className} />;
 };
 
 interface ImmersiveGalleryProps {
   tree: MemoryTree;
-  onExport: (format: 'ZIP' | 'PDF', updatedTree?: MemoryTree) => void;
   overrides: Record<string, { name?: string, date?: string }>;
   setOverrides: React.Dispatch<React.SetStateAction<Record<string, { name?: string, date?: string }>>>;
   isSyncing: boolean;
+  isGlobalView: boolean;
+  setIsGlobalView: (val: boolean) => void;
+  currentFamily: { name: string, slug: string, protocolKey: string };
+  currentUser: Person;
 }
 
-export default function ImmersiveGallery({ tree, onExport, overrides, setOverrides, isSyncing }: ImmersiveGalleryProps) {
-  // --- STATE ---
+export default function ImmersiveGallery({ tree, overrides, setOverrides, isSyncing, isGlobalView, setIsGlobalView, currentFamily, currentUser }: ImmersiveGalleryProps) {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -117,22 +143,24 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
   const [showUi, setShowUi] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPerson, setFilterPerson] = useState('');
-  const [isFlipped, setIsFlipped] = useState(false);
   const [transitionDuration, setTransitionDuration] = useState(0.2);
   const [editingField, setEditingField] = useState<{ id: string, field: 'name' | 'year' } | null>(null);
   const [editValue, setEditValue] = useState('');
-  
-  // Selection State
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isUiLocked, setIsUiLocked] = useState(false);
+  const [annotationMode, setAnnotationMode] = useState<'off' | 'text' | 'cursive'>('off');
+  const [noteMode, setNoteMode] = useState(false);
+  const [artifactMessages, setArtifactMessages] = useState<ChatMessage[]>([]);
+  const [showDescription, setShowDescription] = useState(true);
 
   const hideTimerRef = useRef<any>(null);
   const cycleIntervalRef = useRef<any>(null);
   const showUiRef = useRef(showUi);
 
   useEffect(() => { showUiRef.current = showUi; }, [showUi]);
-  useEffect(() => { setIsFlipped(false); }, [currentIndex]);
+  useEffect(() => { setIsVideoPlaying(false); }, [currentIndex]);
 
-  // --- GRID CYCLE LOGIC ---
   const cycleGridMode = () => {
     setViewMode(prev => {
       if (prev === 'theatre') return 'grid-2';
@@ -145,7 +173,7 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
 
   const getGridCols = () => {
     switch (viewMode) {
-      case 'grid-2': return 'grid-cols-2';
+      case 'grid-2': return 'grid-cols-2'; 
       case 'grid-4': return 'grid-cols-2 md:grid-cols-4';
       case 'grid-8': return 'grid-cols-4 md:grid-cols-8';
       case 'grid-12': return 'grid-cols-6 md:grid-cols-12';
@@ -153,30 +181,27 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
     }
   };
 
-  // --- DATA MAPPING ---
   const localMemories = useMemo(() => {
     try {
       return (tree?.memories || []).map(m => {
         if (!m) return null;
+        if (m.type === 'pdf' || m.type === 'document' || m.type === 'text') return null;
+        if (m.name.endsWith('.pdf') || m.name.endsWith('.txt') || m.name.endsWith('.docx')) return null;
         return {
           ...m,
           name: overrides[m.id]?.name || m.name || 'Untitled Artifact',
           date: overrides[m.id]?.date || m.date || new Date().toISOString()
         };
       }).filter((m): m is Memory => m !== null);
-    } catch (e) {
-      return [];
-    }
+    } catch (e) { return []; }
   }, [tree?.memories, overrides]);
 
-  // --- SEARCH & FILTER ---
   const filteredMemories = useMemo(() => {
     try {
       const q = searchQuery.toLowerCase().trim();
       const fp = filterPerson;
-
       return localMemories.filter(m => {
-        if (!m?.photoUrl) return false;
+        if (!m?.photoUrl && !m?.url) return false;
         const personIds = Array.isArray(m.tags?.personIds) ? m.tags.personIds.map(String) : [];
         if (fp && fp !== '' && fp !== 'FAMILY_ROOT' && !personIds.includes(String(fp))) return false;
         if (!q) return true;
@@ -186,14 +211,19 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
         const hasPersonMatch = personIds.some(pid => tree?.people?.find(p => String(p.id) === String(pid))?.name?.toLowerCase().includes(q));
         return textMatch || year.includes(q) || tags.some(t => String(t || '').toLowerCase().includes(q)) || hasPersonMatch;
       });
-    } catch (e) {
-      return [];
-    }
+    } catch (e) { return []; }
   }, [localMemories, filterPerson, searchQuery, tree?.people]);
 
   const currentMemory = filteredMemories[currentIndex] || null;
 
-  // --- TIMERS ---
+  useEffect(() => {
+    if ((annotationMode !== 'off' || noteMode) && currentMemory) {
+        ChatService.getInstance().getMessagesForArtifact(currentMemory.id).then(setArtifactMessages);
+    } else {
+        setArtifactMessages([]);
+    }
+  }, [currentMemory?.id, annotationMode, noteMode]);
+
   useEffect(() => {
     const clearTimers = () => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -202,11 +232,13 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
     const startTimers = (resetMenu = true) => {
       clearTimers();
       if (resetMenu) {
-        setShowUi(true);
-        if (viewMode === 'theatre' && !editingField) hideTimerRef.current = setTimeout(() => setShowUi(false), 3000);
+        if (viewMode === 'theatre' && !editingField && !isUiLocked) {
+          hideTimerRef.current = setTimeout(() => setShowUi(false), 3000);
+        }
       }
-      if (viewMode === 'theatre' && !editingField) {
+      if (viewMode === 'theatre' && !editingField && !isVideoPlaying) {
         cycleIntervalRef.current = setInterval(() => {
+          if (currentMemory?.type === 'video') return; 
           if (!showUiRef.current && filteredMemories.length > 1) {
             setTransitionDuration(1.5);
             setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
@@ -214,7 +246,13 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
         }, 10000);
       }
     };
-    const handleInteraction = () => startTimers(true);
+    const handleInteraction = () => {
+        setShowUi(true);
+        if (!isUiLocked) startTimers(true);
+        else {
+            if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        }
+    };
     const handleKeys = (e: KeyboardEvent) => {
       if (editingField) return;
       if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
@@ -223,10 +261,12 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
         if (viewMode === 'theatre') {
             setCurrentIndex(prev => (e.key === 'ArrowLeft' ? (prev - 1 + filteredMemories.length) % filteredMemories.length : (prev + 1) % filteredMemories.length));
             setTransitionDuration(0.2);
-            setShowUi(false); 
             startTimers(false); 
         }
-      } else startTimers(true);
+      } else if (e.code !== 'Space') {
+          setShowUi(true);
+          startTimers(true);
+      }
     };
     window.addEventListener('mousemove', handleInteraction);
     window.addEventListener('keydown', handleKeys);
@@ -236,18 +276,46 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
       window.removeEventListener('keydown', handleKeys);
       clearTimers();
     };
-  }, [viewMode, editingField, filteredMemories.length]);
+  }, [viewMode, editingField, filteredMemories.length, isVideoPlaying, currentMemory, isUiLocked]);
 
-  useEffect(() => { if (currentIndex >= filteredMemories.length && filteredMemories.length > 0) setCurrentIndex(0); }, [filteredMemories.length]);
+  const handleVideoEnd = () => {
+      setTimeout(() => {
+          setIsVideoPlaying(false);
+          setTransitionDuration(1.5);
+          setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
+      }, 2000);
+  };
 
   const saveEdit = async () => {
     if (!editingField || !currentMemory) return;
     const { id, field } = editingField;
-    const finalValue = field === 'year' ? `${editValue}-01-01T00:00:00.000Z` : editValue;
+    let finalValue = editValue;
+    if (field === 'year') finalValue = `${editValue}-01-01T00:00:00.000Z`;
+    else if (field === 'name') {
+        const originalName = tree.memories.find(m => m.id === id)?.name || '';
+        const extMatch = originalName.match(/\.[^.]+$/);
+        if (extMatch && !editValue.endsWith(extMatch[0])) finalValue = editValue + extMatch[0];
+    }
     setOverrides(prev => ({ ...prev, [id]: { ...prev[id], [field === 'year' ? 'date' : 'name']: finalValue } }));
     setEditingField(null);
     try { await PersistenceService.getInstance().saveMemorySync({ ...currentMemory, [field === 'year' ? 'date' : 'name']: finalValue }, tree.protocolKey || 'MURRAY_LEGACY_2026'); }
     catch (err) { console.error("Sync Error:", err); }
+  };
+
+  const startEditing = (id: string, field: 'name' | 'year', val: string) => {
+      let displayVal = val;
+      if (field === 'name') displayVal = val.replace(/\.[^.]+$/, '');
+      else if (field === 'year') displayVal = new Date(val).getUTCFullYear().toString();
+      setEditingField({ id, field });
+      setEditValue(displayVal);
+  };
+
+  const handleSelectArtifactFromChat = (artifactId: string) => {
+      const idx = filteredMemories.findIndex(m => m.id === artifactId);
+      if (idx !== -1) {
+          setCurrentIndex(idx);
+          setViewMode('theatre');
+      }
   };
 
   const toggleSelection = (id: string) => {
@@ -260,18 +328,18 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
   };
 
   const downloadSingle = async (m: Memory) => {
-    if (!m.photoUrl) return;
+    if (!m.photoUrl && !m.url) return;
     try {
-        const response = await fetch(m.photoUrl);
+        const response = await fetch(m.url || m.photoUrl || '');
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${m.name || 'artifact'}.jpg`;
+        a.download = m.name;
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
     } catch (e) { console.error("Download failed", e); }
   };
 
@@ -280,55 +348,57 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
     const zip = new JSZip();
     const folder = zip.folder("artifacts");
     const selectedMemories = localMemories.filter(m => selectedIds.has(m.id));
-    let count = 0;
     for (const m of selectedMemories) {
-        if (m.photoUrl) {
+        const targetUrl = m.photoUrl || m.url;
+        if (targetUrl) {
             try {
-                const response = await fetch(m.photoUrl);
+                const response = await fetch(targetUrl);
                 const blob = await response.blob();
-                folder?.file(`${m.name || 'artifact'}_${m.id}.jpg`, blob);
-                count++;
+                folder?.file(m.name, blob);
             } catch (e) { console.error(`Failed to download ${m.id}`, e); }
         }
     }
-    if (count > 0) {
-        const content = await zip.generateAsync({ type: "blob" });
-        const url = window.URL.createObjectURL(content);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `selected_artifacts_${new Date().getTime()}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-    }
+    const content = await zip.generateAsync({ type: "blob" });
+    const url = window.URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `schnitzel_export_${new Date().getTime()}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
     setSelectedIds(new Set());
   };
+
+  const slugPrefix = currentFamily.slug ? `/${currentFamily.slug}` : '';
 
   return (
     <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white font-sans overflow-hidden relative selection:bg-black/10 dark:selection:bg-white/10 transition-colors duration-500">
       <div className="absolute inset-0 bg-noise opacity-20 pointer-events-none z-0"></div>
-      <datalist id="people-list">
-        {tree?.people?.map(p => <option key={p.id} value={p.name} />)}
-      </datalist>
-
+      
       <div className="relative z-10 w-full h-screen flex flex-col">
-        {/* HEADER */}
         <motion.header animate={{ y: showUi ? 0 : -100, opacity: showUi ? 1 : 0 }} className="fixed top-0 left-0 right-0 z-50 px-10 py-4 flex justify-between items-center pointer-events-none">
-          <div className="pointer-events-auto flex flex-col items-start gap-0">
-            <h1 className="text-lg font-serif font-bold text-gray-900 dark:text-white tracking-tighter uppercase italic leading-tight">Schnitzelbank</h1>
-            <span className="text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.4em] leading-tight">The Murray Family Website</span>
-          </div>
-
-          {/* CENTERED SEARCH BAR */}
-          <div className="pointer-events-auto absolute left-1/2 -translate-x-1/2 flex items-center gap-6 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full px-6 py-2 shadow-2xl transition-colors">
-            <Search className="w-3 h-3 text-gray-400 dark:text-white/20" />
-            <input type="text" list="people-list" placeholder="SEARCH..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentIndex(0); }} className="w-32 md:w-48 bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white focus:ring-0 placeholder:text-gray-400 dark:placeholder:text-white/10 p-0" />
-            <div className="w-px h-4 bg-gray-300 dark:bg-white/10" />
-            <select value={filterPerson} onChange={(e) => { setFilterPerson(e.target.value); setCurrentIndex(0); }} className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/40 focus:ring-0 cursor-pointer p-0 pr-4">
-              <option value="">SUBJECTS</option>
-              {tree?.people?.map(p => <option key={p.id} value={p.id} className="bg-white dark:bg-black text-black dark:text-white">{p.name?.toUpperCase()}</option>)}
-            </select>
+          <div className="pointer-events-auto flex items-center gap-12">
+              <div className="flex flex-col items-start gap-0">
+                <h1 className="text-lg font-serif font-bold text-gray-900 dark:text-white tracking-tighter uppercase italic leading-tight">Schnitzelbank</h1>
+                <span className="text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.4em] leading-tight mb-1">
+                    {isGlobalView ? "Murray Global Archive" : currentFamily.name}
+                </span>
+                <div className="flex items-center gap-2 opacity-60">
+                    <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span className="text-[9px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em] italic">{currentUser.name}</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-6 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full px-6 py-2 shadow-2xl transition-colors">
+                <Search className="w-3 h-3 text-gray-400 dark:text-white/20" />
+                <input type="text" placeholder="SEARCH..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentIndex(0); }} className="w-32 md:w-48 bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white focus:ring-0 placeholder:text-gray-400 dark:placeholder:text-white/10 p-0" />
+                <div className="w-px h-4 bg-gray-300 dark:bg-white/10" />
+                <select value={filterPerson} onChange={(e) => { setFilterPerson(e.target.value); setCurrentIndex(0); }} className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/40 focus:ring-0 cursor-pointer p-0 pr-4">
+                  <option value="">SUBJECTS</option>
+                  {tree?.people?.map(p => <option key={p.id} value={p.id} className="bg-white dark:bg-black text-black dark:text-white">{p.name?.toUpperCase()}</option>)}
+                </select>
+              </div>
           </div>
 
           <div className="pointer-events-auto flex gap-4">
@@ -338,64 +408,147 @@ export default function ImmersiveGallery({ tree, onExport, overrides, setOverrid
                     Download ({selectedIds.size})
                 </button>
             )}
-            <button onClick={() => { localStorage.removeItem('schnitzel_session'); window.location.reload(); }} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Lock Archive"><Lock className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
-            <button onClick={() => navigate('/ingest')} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Upload"><Database className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
+            <button onClick={() => setIsGlobalView(!isGlobalView)} className={`p-3.5 rounded-full border transition-all shadow-xl ${isGlobalView ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Global/Family View"><Users className="w-4 h-4" /></button>
+            <button onClick={() => setShowDescription(!showDescription)} className={`p-3.5 rounded-full border transition-all shadow-xl ${showDescription ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Description"><AlignLeft className="w-4 h-4" /></button>
+            <button onClick={() => navigate(`${slugPrefix}/documents`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="File Cabinet"><Database className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
+            <button onClick={() => { localStorage.removeItem('schnitzel_session'); localStorage.removeItem('schnitzel_identity'); window.location.reload(); }} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Lock Archive"><Lock className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
+            <button onClick={() => navigate(`${slugPrefix}/ingest`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Upload"><Terminal className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
             <button onClick={cycleGridMode} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl">
               {viewMode === 'theatre' ? <Grid className="w-4 h-4 text-gray-500 dark:text-white/40" /> : <Maximize2 className="w-4 h-4 text-gray-500 dark:text-white/40" />}
             </button>
             <button onClick={toggleTheme} className="p-3.5 bg-white dark:bg-white/5 rounded-full border border-gray-200 dark:border-white/5 shadow-xl transition-all hover:bg-gray-100 dark:hover:bg-white/10">
               {theme === 'light' ? <Moon className="w-4 h-4 text-gray-500" /> : <Sun className="w-4 h-4 text-white/40" />}
             </button>
-            <button onClick={() => onExport('ZIP', { ...tree, memories: localMemories })} className="p-3.5 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-2xl hover:bg-gray-800 dark:hover:bg-slate-200 transition-all"><Download className="w-4 h-4" /></button>
+            <button onClick={() => navigate(`${slugPrefix}/export`)} className="p-3.5 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-2xl hover:bg-gray-800 dark:hover:bg-slate-200 transition-all"><Download className="w-4 h-4" /></button>
+            <button onClick={() => navigate(`${slugPrefix}/biography`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Biographies"><BookOpen className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
+            <button onClick={() => navigate(`${slugPrefix}/messages`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Messages"><MessageCircle className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
+            <button onClick={() => setNoteMode(!noteMode)} className={`p-3.5 rounded-full border transition-all shadow-xl ${noteMode ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Note Mode"><StickyNote className="w-4 h-4" /></button>
           </div>
         </motion.header>
 
         <AnimatePresence mode="wait">
           {filteredMemories.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center p-10 text-center">
-              {isSyncing ? <p className="text-gray-400 dark:text-white/40 font-serif italic mb-8 text-xl animate-pulse">Synchronizing Protocol...</p> : <>
-                <p className="text-gray-300 dark:text-white/20 font-serif italic mb-8 text-xl">No fragments match search protocol.</p>
-                <button onClick={() => { setSearchQuery(''); setFilterPerson(''); }} className="px-10 py-4 border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white text-[10px] font-black uppercase hover:bg-gray-100 dark:hover:bg-white dark:hover:text-black transition-all">Clear Search</button>
-              </>}
+              {isSyncing ? (
+                <p className="text-gray-400 dark:text-white/40 font-serif italic mb-8 text-xl animate-pulse">Synchronizing Archive...</p>
+              ) : (
+                <div className="max-w-md space-y-8">
+                  <p className="text-gray-300 dark:text-white/20 font-serif italic text-xl">
+                    {isGlobalView ? "Global archive matched no protocol." : "This family bank is empty. Start your protocol."}
+                  </p>
+                  <div className="flex flex-col gap-4 items-center">
+                    {!isGlobalView && <button onClick={() => navigate(`${slugPrefix}/ingest`)} className="px-10 py-4 bg-black dark:bg-white text-white dark:text-black text-[10px] font-black uppercase hover:opacity-80 transition-all shadow-2xl">Upload Memory</button>}
+                    <button onClick={() => { setSearchQuery(''); setFilterPerson(''); }} className="text-[9px] font-black text-gray-400 dark:text-white/30 uppercase tracking-widest hover:text-gray-600 dark:hover:text-white/60 transition-colors">Clear Search Filters</button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           ) : viewMode === 'theatre' && currentMemory ? (
             <motion.div key="theatre" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 relative flex items-center justify-center overflow-hidden">
-              <div className="relative z-10 w-full h-full flex items-center justify-center p-20 md:p-32">
-                <AnimatePresence mode="wait">
-                  <ResolvedMotionImg key={currentMemory.id} src={currentMemory.photoUrl || ''} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: transitionDuration }} className="max-w-[80vw] max-h-[70vh] object-contain shadow-[0_50px_100px_rgba(0,0,0,0.2)] dark:shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-sm border border-gray-200 dark:border-white/5" />
-                </AnimatePresence>
-              </div>
+              <motion.div 
+                key={currentMemory.id} 
+                initial={{ opacity: 0, scale: 1.1, filter: 'blur(20px)' }}
+                animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, scale: 0.9, filter: 'blur(20px)' }}
+                transition={{ duration: transitionDuration, ease: [0.22, 1, 0.36, 1] }}
+                className="w-full h-full flex items-center justify-center p-4 md:p-20"
+              >
+                {currentMemory.type === 'video' || currentMemory.name.endsWith('.mp4') ? (
+                    <CustomVideoPlayer 
+                        src={currentMemory.photoUrl || currentMemory.url || ''} 
+                        autoPlay={true}
+                        onEnded={handleVideoEnd}
+                        className="max-w-full max-h-full shadow-2xl"
+                    />
+                ) : (
+                    <ResolvedImage src={currentMemory.photoUrl || currentMemory.url || ''} alt={currentMemory.name} className="max-w-full max-h-full object-contain shadow-[0_50px_100px_rgba(0,0,0,0.5)]" />
+                )}
+              </motion.div>
+
               <AnimatePresence>
                 {showUi && (
-                  <motion.div initial={{ y: 150, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 150, opacity: 0 }} transition={{ duration: 0.3 }} className="absolute bottom-12 left-1/2 -translate-x-1/2 perspective-1000 z-20">
-                    <div className="relative w-96 min-h-[130px] shadow-2xl dark:shadow-[0_30px_60px_rgba(0,0,0,0.8)] bg-white/90 dark:bg-black/90 backdrop-blur-3xl border border-gray-200 dark:border-white/10 px-10 py-8 rounded-sm flex flex-col items-center justify-center text-center transition-colors">
-                      <div className="text-[9px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.5em] mb-3 italic hover:text-gray-600 dark:hover:text-white/50 transition-colors cursor-pointer" onDoubleClick={(e) => { e.stopPropagation(); setEditingField({ id: currentMemory.id, field: 'year' }); setEditValue(new Date(currentMemory.date).getUTCFullYear().toString()); }}>
-                        {editingField?.id === currentMemory.id && editingField.field === 'year' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-gray-300 dark:border-white/30 text-gray-900 dark:text-white w-12 text-center outline-none" /> : <>Record {currentIndex + 1} // {new Date(currentMemory.date || Date.now()).getUTCFullYear()}</>}
-                      </div>
-                      <div className="text-2xl font-serif italic text-gray-900 dark:text-white tracking-widest truncate w-full group cursor-pointer" onDoubleClick={(e) => { e.stopPropagation(); setEditingField({ id: currentMemory.id, field: 'name' }); setEditValue(currentMemory.name); }}>
-                        {editingField?.id === currentMemory.id && editingField.field === 'name' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-gray-300 dark:border-white/30 text-gray-900 dark:text-white w-full text-center outline-none" /> : <span className="flex items-center justify-center gap-2" onClick={() => setIsFlipped(!isFlipped)}>{isFlipped ? "" : currentMemory.name}<Edit3 className="w-3 h-3 opacity-20" /></span>}
-                      </div>
-                    </div>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="absolute bottom-8 left-8 z-30 flex flex-col items-start text-left pointer-events-none">
+                    {/* CHAT HUD - SIT ABOVE METADATA CARD */}
+                    {viewMode === 'theatre' && (
+                        <div className="pointer-events-auto mb-4" onMouseEnter={() => setIsUiLocked(true)} onMouseLeave={() => setIsUiLocked(false)}>
+                            <div className="flex gap-2 mb-2 opacity-40 hover:opacity-100 transition-opacity">
+                                <button onClick={() => setAnnotationMode('off')} className={`p-1.5 rounded-sm transition-all ${annotationMode === 'off' ? 'bg-white/20 text-white' : 'text-white/40'}`} title="Annotations Off"><X className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => setAnnotationMode('text')} className={`p-1.5 rounded-sm transition-all ${annotationMode === 'text' ? 'bg-emerald-500 text-white' : 'text-white/40'}`} title="Typewriter Mode"><Type className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => setAnnotationMode('cursive')} className={`p-1.5 rounded-sm transition-all ${annotationMode === 'cursive' ? 'bg-emerald-500 text-white' : 'text-white/40'}`} title="Cursive Mode"><PenTool className="w-3.5 h-3.5" /></button>
+                            </div>
+                            <ChatBox currentFamily={currentFamily} currentUser={currentUser} people={tree.people} attachedArtifact={currentMemory ? { id: currentMemory.id, name: currentMemory.name } : undefined} onSelectArtifact={handleSelectArtifactFromChat} />
+                        </div>
+                    )}
+
+                    {!isVideoPlaying && showDescription && (
+                        <div className="pointer-events-auto bg-black/40 backdrop-blur-md border border-white/10 px-6 py-4 rounded-sm hover:bg-black/60 transition-colors">
+                          <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1 cursor-pointer hover:text-white transition-colors" onDoubleClick={(e) => { e.stopPropagation(); startEditing(currentMemory.id, 'year', currentMemory.date); }}>
+                            {editingField?.id === currentMemory.id && editingField.field === 'year' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-white/30 text-white w-12 outline-none" /> : <span>{new Date(currentMemory.date || Date.now()).getUTCFullYear()}</span>}
+                          </div>
+                          <div className="text-xl font-serif italic text-white tracking-wide cursor-pointer hover:text-emerald-400 transition-colors" onDoubleClick={(e) => { e.stopPropagation(); startEditing(currentMemory.id, 'name', currentMemory.name); }}>
+                            {editingField?.id === currentMemory.id && editingField.field === 'name' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-white/30 text-white w-64 outline-none" /> : <span>{currentMemory.name.replace(/\.[^.]+$/, '')}</span>}
+                          </div>
+                        </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {annotationMode !== 'off' && artifactMessages.length > 0 && (
+                  <AnnotationStream messages={artifactMessages} mode={annotationMode} />
+              )}
+
+              {noteMode && (
+                  <motion.div 
+                    initial={{ x: 400, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: 400, opacity: 0 }}
+                    className="absolute right-0 top-0 bottom-0 w-80 bg-white/95 dark:bg-black/80 backdrop-blur-3xl border-l border-gray-100 dark:border-white/10 z-[40] flex flex-col p-8 pt-32"
+                  >
+                    <div className="flex items-center gap-3 mb-8">
+                        <StickyNote className="w-4 h-4 text-emerald-500" />
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-900 dark:text-white">Artifact Notes</h2>
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-6 no-scrollbar">
+                        {artifactMessages.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-center opacity-20">
+                                <MessageCircle className="w-8 h-8 mb-4" />
+                                <p className="text-[8px] font-black uppercase tracking-widest">No transmissions linked to this artifact.</p>
+                            </div>
+                        ) : (
+                            artifactMessages.map((m, i) => (
+                                <div key={i} className="flex flex-col gap-2">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[7px] font-black text-emerald-500 uppercase tracking-widest">{m.senderName}</span>
+                                        <span className="text-[6px] text-gray-300 dark:text-white/10">{m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString() : ''}</span>
+                                    </div>
+                                    <p className="text-[10px] font-serif italic text-gray-600 dark:text-white/60 leading-relaxed border-l-2 border-emerald-500/20 pl-4 py-1">
+                                        {m.text}
+                                    </p>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                  </motion.div>
+              )}
+
               <button onClick={() => setCurrentIndex(p => (p - 1 + filteredMemories.length) % filteredMemories.length)} className={`absolute left-8 top-1/2 -translate-y-1/2 p-6 text-gray-300 dark:text-white/10 hover:text-gray-900 dark:hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronLeft className="w-16 h-16 stroke-[0.5]" /></button>
-              <button onClick={() => setCurrentIndex(p => (p + 1) % filteredMemories.length)} className={`absolute right-8 top-1/2 -translate-y-1/2 p-6 text-gray-300 dark:text-white/10 hover:text-gray-900 dark:hover:text-white transition-opacity duration-700 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronRight className="w-16 h-16 stroke-[0.5]" /></button>
+              <button onClick={() => setCurrentIndex(p => (p + 1) % filteredMemories.length)} className={`absolute right-8 top-1/2 -translate-y-1/2 p-6 text-gray-300 dark:text-white/10 hover:text-gray-900 dark:hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronRight className="w-16 h-16 stroke-[0.5]" /></button>
             </motion.div>
           ) : (
-            <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 overflow-y-auto p-10 pt-32 custom-scrollbar">
+            <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 overflow-y-auto p-10 pt-32 custom-scrollbar" onClick={() => setShowUi(false)}>
               <div className={`grid ${getGridCols()} gap-6 max-w-[1800px] mx-auto pb-20`}>
                 {filteredMemories.map((m, idx) => (
-                  <motion.div key={m.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative aspect-[3/4] bg-gray-100 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-sm overflow-hidden cursor-pointer group hover:border-gray-400 dark:hover:border-white/20 transition-all shadow-xl">
+                  <motion.div key={m.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.02 }} className="relative aspect-square bg-gray-100 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-sm overflow-hidden cursor-pointer group hover:border-gray-400 dark:hover:border-white/20 transition-all shadow-xl">
                       <div onClick={() => { setCurrentIndex(idx); setViewMode('theatre'); }} className="w-full h-full">
-                         <ResolvedImage src={m.photoUrl || ''} className="w-full h-full object-cover opacity-80 dark:opacity-40 group-hover:opacity-100 grayscale group-hover:grayscale-0 transition-all duration-700" />
+                        {m.type === 'video' || m.name.endsWith('.mp4') ? (
+                            <div className="w-full h-full bg-black flex items-center justify-center"><Play className="w-12 h-12 text-white/20" /></div>
+                        ) : (
+                            <ResolvedImage src={m.photoUrl || m.url || ''} alt={m.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110" />
+                        )}
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); toggleSelection(m.id); }} className={`absolute top-2 right-2 p-2 rounded-full transition-all ${selectedIds.has(m.id) ? 'bg-emerald-500 text-white opacity-100' : 'bg-black/50 text-white/50 opacity-0 group-hover:opacity-100 hover:bg-black/80 hover:text-white'}`}>
-                         {selectedIds.has(m.id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); downloadSingle(m); }} className="absolute bottom-2 right-2 p-2 bg-black/50 text-white/50 rounded-full opacity-0 group-hover:opacity-100 hover:bg-white hover:text-black transition-all" title="Download Image">
-                        <Download className="w-4 h-4" />
-                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); toggleSelection(m.id); }} className={`absolute top-2 right-2 p-2 rounded-full transition-all ${selectedIds.has(m.id) ? 'bg-emerald-500 text-white opacity-100' : 'bg-black/50 text-white/50 opacity-0 group-hover:opacity-100 hover:bg-black/80 hover:text-white'}`}>{selectedIds.has(m.id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}</button>
+                      <button onClick={(e) => { e.stopPropagation(); downloadSingle(m); }} className="absolute bottom-2 right-2 p-2 bg-black/50 text-white/50 rounded-full opacity-0 group-hover:opacity-100 hover:bg-white hover:text-black transition-all"><Download className="w-4 h-4" /></button>
                   </motion.div>
                 ))}
               </div>

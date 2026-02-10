@@ -151,6 +151,32 @@ class PersistenceServiceImpl {
   }
 
   /**
+   * Save person directly to Firestore (Sync)
+   */
+  async savePersonSync(person: Person, protocolKey: string): Promise<void> {
+    try {
+      const personRef = doc(firestoreDb, 'trees', protocolKey, 'people', person.id);
+      
+      console.log(`📡 Syncing person to cloud path: ${personRef.path}`);
+
+      await setDoc(personRef, {
+        name: person.name,
+        bio: person.bio || '',
+        birthDate: person.birthDate || '',
+        birthYear: person.birthYear || null,
+        parentId: person.parentId || null,
+        familyGroup: person.familyGroup || null,
+        avatarUrl: person.avatarUrl || ''
+      }, { merge: true });
+      
+      console.log(`✅ Person ${person.id} synchronized to cloud.`);
+    } catch (err: any) {
+      console.error('🔥 Person Cloud Sync Failed:', err);
+      throw err;
+    }
+  }
+
+  /**
    * Setup online/offline network listeners
    */
   private setupNetworkListeners(): void {

@@ -17,6 +17,7 @@ export interface Memory {
   name: string;
   description?: string;
   content: string;
+  url?: string;
   photoUrl?: string;
   location: string;
   date: string;

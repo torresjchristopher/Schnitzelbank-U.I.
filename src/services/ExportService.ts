@@ -1,119 +1,166 @@
 import JSZip from 'jszip';
-import type { MemoryTree } from '../types';
+import type { MemoryTree, Memory, Person } from '../types';
 import { ref, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
+import { storage, db } from '../firebase';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 
 /**
- * ARCHIVE EXPORT SERVICE (OBSIDIAN EDITION)
- * Implements a high-caliber flat-folder structure for family preservation.
- * Respects local overrides for Name and Era.
- * Fixes: Enhanced logging and robust CORS fetching.
+ * ENHANCED ARCHIVE EXPORT SERVICE (FEDERATED EDITION)
+ * Implements nested family hierarchies and cross-protocol harvesting.
+ * Fixes: PDF export, malformed URL resolution, and precise folder mapping.
  */
+
+interface ExportFilter {
+  families?: string[]; // list of slugs
+  people?: string[]; // list of person IDs
+}
 
 class ExportServiceImpl {
   async exportAsZip(
-    tree: MemoryTree,
-    _familyBio: string
+    currentFamily: { name: string, slug: string, protocolKey: string },
+    filter?: ExportFilter
   ): Promise<Blob> {
     console.log("📂 [EXPORT] Initializing production archival build...");
     const zip = new JSZip();
-    const root = zip.folder("Schnitzel Bank Archive") || zip;
+    
+    // 1. Root Folders
+    const rootName = currentFamily.name.replace(" Website", "").replace("The ", "");
+    const currentFamilyRoot = zip.folder(this.sanitize(rootName)) || zip;
+    const globalCabinet = zip.folder("The Schnitzelbank") || zip;
 
-    // 1. PRE-CREATE ALL FOLDERS
-    const familyFolder = root.folder("The Murray Family");
-    const personFolderMap = new Map<string, JSZip>();
+    const protocolDataMap = new Map<string, { tree: MemoryTree, folders: JSZip[] }>();
 
-    (tree.people || []).forEach(person => {
-      if (person.id !== 'FAMILY_ROOT') {
-        const folder = root.folder(this.sanitize(person.name));
-        if (folder) {
-          personFolderMap.set(String(person.id), folder);
-          console.log(`📁 [EXPORT] Prepared folder for: ${person.name}`);
+    // Determine which protocols to harvest
+    let familySlugs: string[] = [];
+    if (filter?.families && filter.families.length > 0) {
+        familySlugs = filter.families;
+    } else if (!filter?.people) {
+        // Export All mode
+        const familiesSnap = await getDocs(collection(db, 'families'));
+        familySlugs = familiesSnap.docs.map(d => d.id);
+        // Ensure legacy Murray is included
+        if (!familySlugs.includes('')) familySlugs.push(''); 
+    }
+
+    // Always ensure current family slug is in the list to be processed
+    if (currentFamily.slug && !familySlugs.includes(currentFamily.slug)) {
+        familySlugs.push(currentFamily.slug);
+    }
+
+    // 2. FETCH ALL DATA
+    for (const slug of familySlugs) {
+        try {
+            let protocolKey = "";
+            let familyName = "";
+            
+            if (!slug || slug === 'murray') {
+                protocolKey = "MURRAY_LEGACY_2026";
+                familyName = "Murray";
+            } else {
+                const familyDoc = await getDoc(doc(db, 'families', slug));
+                if (!familyDoc.exists()) continue;
+                const data = familyDoc.data();
+                protocolKey = data.protocolKey;
+                familyName = data.name;
+            }
+            
+            // Fetch the tree
+            const peopleSnap = await getDocs(collection(db, 'trees', protocolKey, 'people'));
+            const people = peopleSnap.docs.map(d => ({ id: d.id, ...d.data() } as Person));
+            
+            const globalMemSnap = await getDocs(collection(db, 'trees', protocolKey, 'memories'));
+            let memories = globalMemSnap.docs.map(d => ({ id: d.id, ...d.data() } as Memory));
+
+            for (const p of people) {
+                const pMemSnap = await getDocs(collection(db, 'trees', protocolKey, 'people', p.id, 'memories'));
+                const pMems = pMemSnap.docs.map(d => ({ id: d.id, ...d.data() } as Memory));
+                memories = [...memories, ...pMems];
+            }
+
+            const tree: MemoryTree = { familyName, people, memories };
+            const targetFolders: JSZip[] = [];
+            
+            // A. Master Folder Entry
+            const cabinetFolder = globalCabinet.folder(`${this.sanitize(familyName)} Family`);
+            if (cabinetFolder) targetFolders.push(cabinetFolder);
+            
+            // B. Root Folder Entry (If active family)
+            if (slug === currentFamily.slug || (slug === "" && !currentFamily.slug)) {
+                targetFolders.push(currentFamilyRoot);
+            }
+            
+            protocolDataMap.set(protocolKey, { tree, folders: targetFolders });
+        } catch (e) {
+            console.error(`Failed to fetch data for ${slug}`, e);
         }
-      }
-    });
+    }
 
-    const processedIds = new Set<string>();
-    let successCount = 0;
+    // 3. PROCESS AND DOWNLOAD
+    let totalSuccess = 0;
+    const processedMap = new Set<string>();
 
-    // 2. DOWNLOAD AND SORT
-    const downloadPromises = (tree.memories || []).map(async (memory) => {
-      if (!memory.photoUrl || processedIds.has(memory.id)) return;
-      processedIds.add(memory.id);
-
-      try {
-        let fetchUrl = memory.photoUrl;
+    for (const [pKey, data] of Array.from(protocolDataMap.entries())) {
+        const { tree, folders } = data;
         
-        // Resolve GCS URLs to Firebase Download URLs to bypass 403/CORS
-        if (fetchUrl.includes('storage.googleapis.com')) {
-          try {
-             // Extract path: https://storage.googleapis.com/BUCKET/artifacts/...
-             const urlObj = new URL(fetchUrl);
-             const pathParts = urlObj.pathname.split('/').slice(2); // Remove /BUCKET/
-             const storagePath = pathParts.join('/'); // decodeURIComponent if needed
-             
-             // If manual parsing is tricky, try simply extracting everything after the bucket name
-             // Or better: rely on the known structure "artifacts/..."
-             const match = fetchUrl.match(/artifacts\/.+/);
-             const finalPath = match ? match[0] : storagePath;
-             
-             if (finalPath) {
-                 const storageRef = ref(storage, finalPath);
-                 fetchUrl = await getDownloadURL(storageRef);
-                 console.log(`🔄 [EXPORT] Resolved GCS URL to: ${fetchUrl}`);
-             }
-          } catch (e) {
-             console.warn(`⚠️ [EXPORT] URL resolution failed for ${memory.name}, using original`, e);
-          }
-        }
-
-        console.log(`📡 [EXPORT] Attempting download: ${memory.name} from ${fetchUrl}`);
-        
-        // Use the most basic fetch to avoid triggering CORS preflight/security blocks
-        const response = await fetch(fetchUrl, {
-            cache: 'no-cache'
+        const structures = folders.map(f => {
+            const personMap = new Map<string, JSZip>();
+            const globalPicFolder = f.folder("Family Pictures");
+            if (globalPicFolder) personMap.set('FAMILY_ROOT', globalPicFolder);
+            
+            tree.people.forEach(p => {
+                const pFolder = f.folder(this.sanitize(p.name));
+                if (pFolder) personMap.set(p.id, pFolder);
+            });
+            return { root: f, personMap };
         });
 
-        if (!response.ok) throw new Error(`Fetch failed with status ${response.status}`);
-        const blob = await response.blob();
-        
-        console.log(`💎 [EXPORT] Received blob for ${memory.name} (${blob.size} bytes)`);
+        const downloadPromises = tree.memories.map(async (memory) => {
+            const uniqueKey = `${pKey}_${memory.id}`;
+            if (processedMap.has(uniqueKey)) return;
+            
+            const sourceUrl = memory.url || memory.photoUrl;
+            if (!sourceUrl) return;
 
-        let targetFolder = familyFolder;
-        const personIds = Array.isArray(memory.tags?.personIds) ? memory.tags.personIds : [];
-        const isFamilywide = !!memory.tags?.isFamilyMemory;
+            try {
+                let fetchUrl = sourceUrl;
+                
+                // Fixed URL resolution to prevent 404s
+                if (fetchUrl.includes('storage.googleapis.com') && !fetchUrl.includes('firebasestorage')) {
+                    const match = fetchUrl.match(/artifacts\/.+/);
+                    if (match) {
+                        try {
+                            const storageRef = ref(storage, match[0]);
+                            fetchUrl = await getDownloadURL(storageRef);
+                        } catch (e) {}
+                    }
+                }
 
-        if (!isFamilywide && personIds.length > 0) {
-          const primaryId = String(personIds[0]);
-          targetFolder = personFolderMap.get(primaryId) || familyFolder;
-        }
+                const response = await fetch(fetchUrl);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const blob = await response.blob();
 
-        const yearVal = memory.date ? new Date(memory.date).getUTCFullYear() : new Date().getUTCFullYear();
-        const year = isNaN(yearVal) ? new Date().getUTCFullYear() : yearVal;
-        
-        let baseName = this.sanitize(memory.name || 'artifact');
-        const extension = this.getExt(fetchUrl); // Use resolved URL for ext
-        
-        // Strip duplicate extensions
-        const dotIdx = baseName.lastIndexOf('.');
-        if (dotIdx !== -1 && baseName.substring(dotIdx).length < 6) {
-          baseName = baseName.substring(0, dotIdx);
-        }
+                const personIds = memory.tags?.personIds || [];
+                const ownerId = (personIds.length > 0) ? personIds[0] : 'FAMILY_ROOT';
 
-        const fileName = `${year}_${baseName}${extension}`;
-        
-        if (targetFolder) {
-          targetFolder.file(fileName, blob);
-          successCount++;
-          console.log(`✅ [EXPORT] Success: ${fileName} added to ${targetFolder.name}`);
-        }
-      } catch (err: any) {
-        console.error(`❌ [EXPORT] Failed artifact [${memory.name}]:`, err.message);
-      }
-    });
+                const year = memory.date ? new Date(memory.date).getUTCFullYear() : new Date().getUTCFullYear();
+                const extension = this.getExt(memory.name, fetchUrl);
+                const safeBase = this.sanitize(memory.name).replace(/\.[^.]+$/, '');
+                const finalFileName = `${year}_${safeBase}${extension}`;
 
-    await Promise.all(downloadPromises);
-    console.log(`📦 [EXPORT] Composition Complete. Total artifacts physically captured: ${successCount}`);
+                structures.forEach(s => {
+                    const target = s.personMap.get(ownerId) || s.root;
+                    target.file(finalFileName, blob);
+                });
+
+                processedMap.add(uniqueKey);
+                totalSuccess++;
+            } catch (err) {
+                console.error(`❌ [EXPORT] Failed: ${memory.name}`, err);
+            }
+        });
+
+        await Promise.all(downloadPromises);
+    }
 
     return await zip.generateAsync({
       type: 'blob',
@@ -123,10 +170,13 @@ class ExportServiceImpl {
   }
 
   private sanitize(name: string): string {
-    return name.replace(/[/\\?%*:|"<>]/g, '-').trim() || 'artifact';
+    return (name || 'artifact').replace(/[/\\?%*:|"<>]/g, '-').trim();
   }
 
-  private getExt(url: string): string {
+  private getExt(fileName: string, url: string): string {
+    const filePart = fileName.split('.').pop()?.toLowerCase();
+    if (filePart && filePart.length < 5 && !['com', 'org', 'net', 'app'].includes(filePart)) return `.${filePart}`;
+    
     try {
       const cleanUrl = url.split('?')[0];
       const parts = cleanUrl.split('.');
@@ -139,11 +189,8 @@ class ExportServiceImpl {
   }
 }
 
-let instance: ExportServiceImpl | null = null;
-
 export const ExportService = {
   getInstance(): ExportServiceImpl {
-    if (!instance) instance = new ExportServiceImpl();
-    return instance;
+    return new ExportServiceImpl();
   },
 };
