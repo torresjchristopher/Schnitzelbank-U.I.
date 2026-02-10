@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../App';
 import JSZip from 'jszip';
 import { ChatBox } from '../components/ChatBox';
+import type { ChatMessage } from '../services/ChatService';
 
 // --- VIDEO PLAYER COMPONENT ---
 const CustomVideoPlayer = ({ src, autoPlay, onEnded, className }: { src: string, autoPlay?: boolean, onEnded?: () => void, className?: string }) => {
@@ -121,6 +122,35 @@ const ResolvedImage = ({ src, alt, className }: { src: string, alt?: string, cla
   return <img src={resolvedSrc} alt={alt} className={className} />;
 };
 
+// --- MESSAGE STREAM COMPONENT ---
+const MessageStream = ({ messages, currentUser }: { messages: ChatMessage[], currentUser: Person }) => {
+    const streamRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        streamRef.current?.scrollTo({ top: streamRef.current.scrollHeight, behavior: 'smooth' });
+    }, [messages]);
+
+    return (
+        <div ref={streamRef} className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto no-scrollbar py-10">
+            {messages.length === 0 ? (
+                <p className="text-[8px] font-black uppercase tracking-widest text-black/20 text-center py-10 italic">No activity detected.</p>
+            ) : (
+                messages.map((m, i) => (
+                    <div key={i} className={`flex flex-col ${m.senderPersonId === currentUser.id ? 'items-end' : 'items-start'}`}>
+                        <div className="text-[6px] font-black text-black opacity-40 uppercase tracking-[0.2em] mb-1 px-1">{m.senderName}</div>
+                        <div className={`w-fit max-w-[90%] p-2.5 rounded-sm text-[10px] leading-snug font-black transition-colors ${
+                            m.senderPersonId === currentUser.id 
+                            ? 'bg-emerald-500 text-black shadow-sm' 
+                            : 'bg-white border border-black/10 text-black shadow-sm'
+                        }`}>
+                            {m.text}
+                        </div>
+                    </div>
+                ))
+            )}
+        </div>
+    );
+};
+
 interface ImmersiveGalleryProps {
   tree: MemoryTree;
   overrides: Record<string, { name?: string, date?: string }>;
@@ -148,6 +178,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
   const [isUiLocked, setIsUiLocked] = useState(false);
   const [noteMode, setNoteMode] = useState(false);
   const [chatBoxMode, setChatBoxMode] = useState<'dm' | 'note'>('dm');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [showDescription, setShowDescription] = useState(true);
   const [isShuffleGallery, setIsShuffleGallery] = useState(false);
   const [isChatInputActive, setIsChatInputActive] = useState(false);
@@ -574,6 +605,13 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
               <AnimatePresence>
                 {showUi && (
                   <div className="absolute inset-0 z-30 pointer-events-none">
+                    {/* MESSAGE STREAM - LEFT OF MEDIA */}
+                    {viewMode === 'theatre' && (
+                        <div className="absolute left-10 top-1/2 -translate-y-1/2 w-80 pointer-events-auto">
+                            <MessageStream messages={chatMessages} currentUser={currentUser} />
+                        </div>
+                    )}
+
                     {/* CHAT HUD - CENTERED BOTTOM */}
                     {viewMode === 'theatre' && (
                         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 pointer-events-auto w-full max-w-4xl px-8" onMouseEnter={() => setIsUiLocked(true)} onMouseLeave={() => setIsUiLocked(false)}>
@@ -583,9 +621,10 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                                 people={tree.people} 
                                 attachedArtifact={attachedArtifact} 
                                 onSelectArtifact={handleSelectArtifactFromChat} 
-                                initialMode={noteMode ? 'note' : 'dm'}
+                                mode={chatBoxMode}
                                 onModeChange={setChatBoxMode}
                                 onInputActive={setIsChatInputActive}
+                                onMessageUpdate={setChatMessages}
                             />
                         </div>
                     )}

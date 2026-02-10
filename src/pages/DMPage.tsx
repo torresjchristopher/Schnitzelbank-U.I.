@@ -26,13 +26,12 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
 
   useEffect(() => {
     let familyChats: ChatSession[] = [];
+    let personalChats: ChatSession[] = [];
     let globalChats: ChatSession[] = [];
 
     const updateCombined = () => {
-        const combined = [...familyChats, ...globalChats];
-        // Deduplicate by ID
+        const combined = [...familyChats, ...personalChats, ...globalChats];
         const unique = Array.from(new Map(combined.map(c => [c.id, c])).values());
-        // Sort locally
         unique.sort((a, b) => {
             const timeA = a.updatedAt?.seconds || 0;
             const timeB = b.updatedAt?.seconds || 0;
@@ -41,9 +40,13 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
         setChats(unique);
     };
 
-    // Personal ID or Family ID both track relevant chats
-    const unsubFamily = chatService.subscribeToAllChats(currentUser.id, (cs) => {
+    const unsubFamily = chatService.subscribeToAllChats(currentFamily.slug, (cs) => {
         familyChats = cs;
+        updateCombined();
+    });
+
+    const unsubPersonal = chatService.subscribeToAllChats(currentUser.id, (cs) => {
+        personalChats = cs;
         updateCombined();
     });
 
@@ -54,6 +57,7 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
 
     return () => {
         unsubFamily();
+        unsubPersonal();
         unsubGlobal();
     };
   }, [currentFamily.slug, currentUser.id]);

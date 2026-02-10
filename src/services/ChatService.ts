@@ -193,4 +193,20 @@ export class ChatService {
         console.error("Global broadcast sub failed", error);
     });
   }
+
+  async getNotedArtifactIds(): Promise<string[]> {
+    try {
+        const q = query(collectionGroup(db, 'messages'));
+        const snap = await getDocs(q);
+        const ids = new Set<string>();
+        snap.forEach(doc => {
+            const data = doc.data();
+            if (data.artifactId) ids.add(data.artifactId);
+        });
+        return Array.from(ids);
+    } catch (e) {
+        console.error("Failed to fetch noted artifact IDs", e);
+        return [];
+    }
+  }
 }

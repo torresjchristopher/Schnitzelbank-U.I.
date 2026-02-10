@@ -160,6 +160,7 @@ export default function FileCabinet({ tree, overrides, setOverrides, isSyncing, 
   const [annotationMode, setAnnotationMode] = useState<'off' | 'text' | 'cursive'>('off');
   const [artifactMessages, setArtifactMessages] = useState<ChatMessage[]>([]);
   const [showDescription, setShowDescription] = useState(true);
+  const [chatBoxMode, setChatBoxMode] = useState<'dm' | 'note'>('dm');
   
   const hideTimerRef = useRef<any>(null);
   const cycleIntervalRef = useRef<any>(null);
@@ -387,7 +388,15 @@ export default function FileCabinet({ tree, overrides, setOverrides, isSyncing, 
                             <button onClick={() => setAnnotationMode('text')} className={`p-1.5 rounded-sm ${annotationMode === 'text' ? 'bg-emerald-500 text-white' : 'text-white/40'}`}><Type className="w-3.5 h-3.5" /></button>
                             <button onClick={() => setAnnotationMode('cursive')} className={`p-1.5 rounded-sm ${annotationMode === 'cursive' ? 'bg-emerald-500 text-white' : 'text-white/40'}`}><PenTool className="w-3.5 h-3.5" /></button>
                         </div>
-                        <ChatBox currentFamily={currentFamily} currentUser={currentUser} people={tree.people} attachedArtifact={{ id: currentMemory.id, name: currentMemory.name }} onSelectArtifact={handleSelectArtifactFromChat} />
+                        <ChatBox 
+                            currentFamily={currentFamily} 
+                            currentUser={currentUser} 
+                            people={tree.people} 
+                            attachedArtifact={{ id: currentMemory.id, name: currentMemory.name }} 
+                            onSelectArtifact={handleSelectArtifactFromChat} 
+                            mode={chatBoxMode}
+                            onModeChange={setChatBoxMode}
+                        />
                     </div>
                     <div className="pointer-events-auto bg-black/40 backdrop-blur-md border border-white/10 px-6 py-4 rounded-sm hover:bg-black/60 transition-colors">
                       <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1 cursor-pointer hover:text-white" onDoubleClick={() => startEditing(currentMemory.id, 'year', currentMemory.date)}>{editingField?.id === currentMemory.id && editingField.field === 'year' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} className="bg-transparent border-b border-white/30 text-white w-12 outline-none" /> : <span>{new Date(currentMemory.date || Date.now()).getUTCFullYear()}</span>}</div>
