@@ -31,13 +31,14 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
     if (mode === 'note' && attachedArtifact) {
         unsub = chatService.subscribeToArtifactMessages(attachedArtifact.id, (msgs) => onMessageUpdate?.(msgs));
     } else if (participants.length > 0) {
+      // Chat ID is derived from personal IDs to ensure unique threads within family members
       const pIds = Array.from(new Set([currentFamily.slug, currentUser.id, ...participants.map(p => p.id)]));
       unsub = chatService.subscribeToMessages(pIds, (msgs) => onMessageUpdate?.(msgs));
     } else {
       onMessageUpdate?.([]);
     }
     return unsub;
-  }, [participants, currentFamily.slug, mode, attachedArtifact?.id, currentUser.id, onMessageUpdate]);
+  }, [participants, currentFamily.slug, mode, attachedArtifact?.id, currentUser.id]);
 
   useEffect(() => {
     onInputActive?.(inputText.length > 0);
@@ -92,6 +93,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
     if (!inputText.trim() && !hasAttachment) return;
     if (!isNote && participants.length === 0) return;
 
+    // Participants MUST include both the family slug and the current person ID
     const pIds = isNote ? [currentFamily.slug, currentUser.id] : Array.from(new Set([currentFamily.slug, currentUser.id, ...participants.map(p => p.id)]));
     
     await chatService.sendMessage(
@@ -107,31 +109,33 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
 
   return (
     <div className="flex flex-col pointer-events-auto font-sans w-full max-w-4xl">
-      <div className="flex items-center gap-6 py-4">
+      <div className="flex items-center gap-6 py-4 px-6 bg-white/90 backdrop-blur-xl border border-black/10 rounded-sm shadow-2xl">
         {/* Toggle Icons */}
-        <div className="flex gap-2 opacity-40 hover:opacity-100 transition-opacity">
+        <div className="flex gap-2">
             <button 
                 onClick={() => onModeChange('dm')} 
-                className={`p-2 rounded-full transition-all ${mode === 'dm' ? 'bg-black text-white' : 'text-black'}`}
+                className={`p-2 rounded-full transition-all ${mode === 'dm' ? 'bg-black text-white' : 'text-black hover:bg-black/5'}`}
             >
                 <MessageSquare className="w-4 h-4" />
             </button>
             <button 
                 onClick={() => onModeChange('note')} 
-                className={`p-2 rounded-full transition-all ${mode === 'note' ? 'bg-emerald-500 text-white' : 'text-black'}`}
+                className={`p-2 rounded-full transition-all ${mode === 'note' ? 'bg-emerald-500 text-black' : 'text-black hover:bg-black/5'}`}
             >
                 <StickyNote className="w-4 h-4" />
             </button>
         </div>
 
+        <div className="h-4 w-px bg-black/10" />
+
         {/* Minimal Control Bar */}
-        <div className="flex-1 flex items-center gap-6 text-black">
+        <div className="flex-1 flex items-center gap-8 text-black">
             {mode === 'dm' && (
                 <div className="flex items-center gap-3 relative">
-                    <span className="text-[10px] font-black uppercase tracking-widest">Search</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-black">Search</span>
                     <input 
                         type="text" 
-                        className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest focus:ring-0 p-0 w-32 placeholder:text-black/20"
+                        className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest focus:ring-0 p-0 w-32 text-black placeholder:text-black/20"
                         value={searchTerm}
                         onChange={(e) => handleSearch(e.target.value)}
                     />
@@ -154,7 +158,9 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
             )}
 
             <div className="flex-1 flex items-center gap-4">
-                <span className="text-[10px] font-black uppercase tracking-widest">Message</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-black">
+                    {mode === 'note' ? 'Write note' : 'Message'}
+                </span>
                 {mode === 'dm' && (
                     <button 
                         onClick={() => setIsLinkingActive(!isLinkingActive)}
@@ -165,18 +171,18 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
                 )}
                 <input 
                     type="text" 
-                    className="flex-1 bg-transparent border-none text-[10px] font-black uppercase tracking-widest focus:ring-0 p-0 placeholder:text-black/20"
+                    className="flex-1 bg-transparent border-none text-[10px] font-black uppercase tracking-widest focus:ring-0 p-0 text-black placeholder:text-black/20"
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 />
-                <button onClick={handleSend} className="text-black hover:text-emerald-500 transition-colors">
+                <button onClick={handleSend} className="text-black hover:text-emerald-500 transition-all active:scale-90">
                     <Send className="w-4 h-4" />
                 </button>
             </div>
 
             {mode === 'dm' && participants.length > 0 && (
-                <div className="flex gap-1">
+                <div className="flex gap-1 ml-2">
                     {participants.map(p => (
                         <div key={p.id} className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-[8px] font-black text-white relative group">
                             {p.name[0]}

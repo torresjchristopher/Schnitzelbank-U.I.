@@ -176,7 +176,6 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isUiLocked, setIsUiLocked] = useState(false);
-  const [noteMode, setNoteMode] = useState(false);
   const [chatBoxMode, setChatBoxMode] = useState<'dm' | 'note'>('dm');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [showDescription, setShowDescription] = useState(true);
@@ -362,7 +361,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
       window.removeEventListener('keydown', handleKeys);
       clearTimers();
     };
-  }, [viewMode, editingField, filteredMemories.length, isVideoPlaying, currentMemory, isUiLocked, isShuffleGallery, currentIndex, orderedMemories, selectedIds, customOrder]);
+  }, [viewMode, editingField, filteredMemories.length, isVideoPlaying, currentMemory, isUiLocked, isShuffleGallery, currentIndex, orderedMemories, selectedIds, customOrder, isChatInputActive]);
 
   const handleVideoEnd = () => {
       setTimeout(() => {
@@ -523,14 +522,14 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
               </button>
               <button onClick={() => navigate(`${slugPrefix}/biography`)} className="p-3.5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10" title="Biographies"><BookOpen className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
               <button onClick={() => navigate(`${slugPrefix}/export`)} className="p-3.5 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-2xl hover:opacity-80 transition-all" title="Export"><Download className="w-4 h-4" /></button>
-              <button onClick={() => setIsGlobalView(!isGlobalView)} className={`p-3.5 rounded-full transition-all ${isGlobalView ? 'bg-emerald-500/20 text-emerald-500' : 'text-gray-500 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10'}`} title="Toggle Global/Family View"><Users className="w-4 h-4" /></button>
+              <button onClick={() => setIsGlobalView(!isGlobalView)} className={`p-3.5 rounded-full transition-all ${isGlobalView ? 'bg-emerald-500/20 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Global/Family View"><Users className="w-4 h-4" /></button>
               
               <button onClick={toggleTheme} className="p-3.5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10" title="Theme">
                 {theme === 'light' ? <Moon className="w-4 h-4 text-gray-500" /> : <Sun className="w-4 h-4 text-white/40" />}
               </button>
               <button onClick={() => setShowDescription(!showDescription)} className={`p-3.5 rounded-full transition-all ${showDescription ? 'bg-emerald-500/20 text-emerald-500' : 'text-gray-500 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10'}`} title="Toggle Description"><AlignLeft className="w-4 h-4" /></button>
-              <button onClick={() => setNoteMode(!noteMode)} className={`p-3.5 rounded-full transition-all ${noteMode ? 'bg-emerald-500/20 text-emerald-500' : 'text-gray-500 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10'}`} title="Toggle Note Mode"><StickyNote className="w-4 h-4" /></button>
-              <button onClick={() => setIsShuffleGallery(!isShuffleGallery)} className={`p-3.5 rounded-full transition-all ${isShuffleGallery ? 'bg-emerald-500/20 text-emerald-500' : 'text-gray-500 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10'}`} title="Toggle Shuffle Progression"><Shuffle className="w-4 h-4" /></button>
+              <button onClick={() => navigate(`${slugPrefix}/notes`)} className={`p-3.5 rounded-full transition-all text-gray-500 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10`} title="Note Archive"><StickyNote className="w-4 h-4" /></button>
+              <button onClick={() => setIsShuffleGallery(!isShuffleGallery)} className={`p-3.5 rounded-full transition-all ${isShuffleGallery ? 'bg-emerald-500/20 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Shuffle Progression"><Shuffle className="w-4 h-4" /></button>
           </div>
         </motion.header>
 
