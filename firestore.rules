@@ -14,11 +14,13 @@ service cloud.firestore {
     }
 
     // 3. Messaging Rules
-    // Allow reading and writing to chats if the user's family slug is in the participants list
-    // Note: Since we are using simple passwords and slugs for identity, 
-    // we allow public read/write but recommend a simple 'participant' check if we had full Auth.
     match /chats/{chatId}/{document=**} {
       allow read, write: if true; 
+    }
+
+    // 4. Collection Group Rules for Artifact Annotations
+    match /{path=**}/messages/{messageId} {
+      allow read, write: if true;
     }
   }
 }

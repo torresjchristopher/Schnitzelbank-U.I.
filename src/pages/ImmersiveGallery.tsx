@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Lock, Database, Sun, Moon, Play, Pause, CheckSquare, Square, Volume2, VolumeX, Users, PenTool, Type, X, Terminal, AlignLeft, BookOpen, MessageCircle, StickyNote } from 'lucide-react';
+import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Lock, Database, Sun, Moon, Play, Pause, CheckSquare, Square, Volume2, VolumeX, Users, PenTool, Type, X, Terminal, AlignLeft, BookOpen, MessageCircle, StickyNote, Shuffle } from 'lucide-react';
 import type { MemoryTree, Memory, Person } from '../types';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { PersistenceService } from '../services/PersistenceService';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
@@ -153,6 +153,17 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
   const [noteMode, setNoteMode] = useState(false);
   const [artifactMessages, setArtifactMessages] = useState<ChatMessage[]>([]);
   const [showDescription, setShowDescription] = useState(true);
+  const [isShuffleGallery, setIsShuffleGallery] = useState(false);
+  const [noteInput, setNoteInput] = useState('');
+  const [orderedMemories, setOrderedMemories] = useState<Memory[]>([]);
+  const [customOrder, setCustomOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem(`schnitzel_order_${currentFamily.slug || 'global'}`);
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem(`schnitzel_order_${currentFamily.slug || 'global'}`, JSON.stringify(customOrder));
+  }, [customOrder, currentFamily.slug]);
 
   const hideTimerRef = useRef<any>(null);
   const cycleIntervalRef = useRef<any>(null);
@@ -214,6 +225,18 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
     } catch (e) { return []; }
   }, [localMemories, filterPerson, searchQuery, tree?.people]);
 
+  useEffect(() => {
+    const sorted = [...filteredMemories].sort((a, b) => {
+        const idxA = customOrder.indexOf(a.id);
+        const idxB = customOrder.indexOf(b.id);
+        if (idxA === -1 && idxB === -1) return 0;
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+    });
+    setOrderedMemories(sorted);
+  }, [filteredMemories, customOrder]);
+
   const currentMemory = filteredMemories[currentIndex] || null;
 
   useEffect(() => {
@@ -241,7 +264,13 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
           if (currentMemory?.type === 'video') return; 
           if (!showUiRef.current && filteredMemories.length > 1) {
             setTransitionDuration(1.5);
-            setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
+            if (isShuffleGallery) {
+                let nextIdx = Math.floor(Math.random() * filteredMemories.length);
+                if (nextIdx === currentIndex) nextIdx = (currentIndex + 1) % filteredMemories.length;
+                setCurrentIndex(nextIdx);
+            } else {
+                setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
+            }
           }
         }, 10000);
       }
@@ -259,8 +288,15 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
         if (viewMode === 'theatre') {
-            setCurrentIndex(prev => (e.key === 'ArrowLeft' ? (prev - 1 + filteredMemories.length) % filteredMemories.length : (prev + 1) % filteredMemories.length));
+            const direction = e.key === 'ArrowLeft' ? 'prev' : 'next';
             setTransitionDuration(0.2);
+            if (isShuffleGallery && direction === 'next') {
+                let nextIdx = Math.floor(Math.random() * filteredMemories.length);
+                if (nextIdx === currentIndex) nextIdx = (currentIndex + 1) % filteredMemories.length;
+                setCurrentIndex(nextIdx);
+            } else {
+                setCurrentIndex(prev => direction === 'next' ? (prev + 1) % filteredMemories.length : (prev - 1 + filteredMemories.length) % filteredMemories.length);
+            }
             startTimers(false); 
         }
       } else if (e.code !== 'Space') {
@@ -276,13 +312,19 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
       window.removeEventListener('keydown', handleKeys);
       clearTimers();
     };
-  }, [viewMode, editingField, filteredMemories.length, isVideoPlaying, currentMemory, isUiLocked]);
+  }, [viewMode, editingField, filteredMemories.length, isVideoPlaying, currentMemory, isUiLocked, isShuffleGallery, currentIndex]);
 
   const handleVideoEnd = () => {
       setTimeout(() => {
           setIsVideoPlaying(false);
           setTransitionDuration(1.5);
-          setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
+          if (isShuffleGallery) {
+              let nextIdx = Math.floor(Math.random() * filteredMemories.length);
+              if (nextIdx === currentIndex) nextIdx = (currentIndex + 1) % filteredMemories.length;
+              setCurrentIndex(nextIdx);
+          } else {
+              setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
+          }
       }, 2000);
   };
 
@@ -370,6 +412,35 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
     setSelectedIds(new Set());
   };
 
+  const handleSendNote = async () => {
+    if (!noteInput.trim() || !currentMemory) return;
+    await ChatService.getInstance().sendMessage(
+        [currentFamily.slug],
+        currentFamily.slug,
+        `${currentFamily.name.split(' ')[1]} // ${currentUser.name}`,
+        noteInput,
+        { id: currentMemory.id, name: currentMemory.name }
+    );
+    setNoteInput('');
+    const msgs = await ChatService.getInstance().getMessagesForArtifact(currentMemory.id);
+    setArtifactMessages(msgs);
+  };
+
+  const transferSelected = async (targetPersonId: string) => {
+    if (selectedIds.size === 0) return;
+    try {
+        await PersistenceService.getInstance().transferArtifacts(
+            Array.from(selectedIds),
+            targetPersonId,
+            tree.protocolKey || 'MURRAY_LEGACY_2026',
+            tree.memories
+        );
+        setSelectedIds(new Set());
+    } catch (e) {
+        console.error("Transfer failed", e);
+    }
+  };
+
   const slugPrefix = currentFamily.slug ? `/${currentFamily.slug}` : '';
 
   return (
@@ -401,30 +472,60 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
               </div>
           </div>
 
-          <div className="pointer-events-auto flex gap-4">
-            {selectedIds.size > 0 && (
-                <button onClick={downloadSelected} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-full shadow-2xl hover:bg-emerald-400 transition-all font-bold text-xs uppercase tracking-widest animate-in fade-in slide-in-from-top-2">
-                    <Download className="w-3 h-3" />
-                    Download ({selectedIds.size})
-                </button>
-            )}
-            <button onClick={() => setIsGlobalView(!isGlobalView)} className={`p-3.5 rounded-full border transition-all shadow-xl ${isGlobalView ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Global/Family View"><Users className="w-4 h-4" /></button>
-            <button onClick={() => setShowDescription(!showDescription)} className={`p-3.5 rounded-full border transition-all shadow-xl ${showDescription ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Description"><AlignLeft className="w-4 h-4" /></button>
-            <button onClick={() => navigate(`${slugPrefix}/documents`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="File Cabinet"><Database className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
-            <button onClick={() => { localStorage.removeItem('schnitzel_session'); localStorage.removeItem('schnitzel_identity'); window.location.reload(); }} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Lock Archive"><Lock className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
-            <button onClick={() => navigate(`${slugPrefix}/ingest`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Upload"><Terminal className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
-            <button onClick={cycleGridMode} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl">
-              {viewMode === 'theatre' ? <Grid className="w-4 h-4 text-gray-500 dark:text-white/40" /> : <Maximize2 className="w-4 h-4 text-gray-500 dark:text-white/40" />}
-            </button>
-            <button onClick={toggleTheme} className="p-3.5 bg-white dark:bg-white/5 rounded-full border border-gray-200 dark:border-white/5 shadow-xl transition-all hover:bg-gray-100 dark:hover:bg-white/10">
-              {theme === 'light' ? <Moon className="w-4 h-4 text-gray-500" /> : <Sun className="w-4 h-4 text-white/40" />}
-            </button>
-            <button onClick={() => navigate(`${slugPrefix}/export`)} className="p-3.5 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-2xl hover:bg-gray-800 dark:hover:bg-slate-200 transition-all"><Download className="w-4 h-4" /></button>
-            <button onClick={() => navigate(`${slugPrefix}/biography`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Biographies"><BookOpen className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
-            <button onClick={() => navigate(`${slugPrefix}/messages`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Messages"><MessageCircle className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
-            <button onClick={() => setNoteMode(!noteMode)} className={`p-3.5 rounded-full border transition-all shadow-xl ${noteMode ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Note Mode"><StickyNote className="w-4 h-4" /></button>
+          <div className="pointer-events-auto flex flex-col items-end gap-0">
+            {/* Horizontal Segment */}
+            <div className="flex gap-4 mb-4">
+              <button onClick={() => { localStorage.removeItem('schnitzel_session'); localStorage.removeItem('schnitzel_identity'); window.location.reload(); }} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Lock Archive"><Lock className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
+              <button onClick={() => navigate(`${slugPrefix}/documents`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="File Cabinet"><Database className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
+              <button onClick={() => navigate(`${slugPrefix}/ingest`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Upload"><Terminal className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
+              <button onClick={cycleGridMode} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Grid View">
+                {viewMode === 'theatre' ? <Grid className="w-4 h-4 text-gray-500 dark:text-white/40" /> : <Maximize2 className="w-4 h-4 text-gray-500 dark:text-white/40" />}
+              </button>
+              <button onClick={() => navigate(`${slugPrefix}/biography`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full border border-gray-200 dark:border-white/5 transition-all shadow-xl" title="Biographies"><BookOpen className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
+              <button onClick={() => navigate(`${slugPrefix}/export`)} className="p-3.5 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-2xl hover:bg-gray-800 dark:hover:bg-slate-200 transition-all" title="Export"><Download className="w-4 h-4" /></button>
+            </div>
+
+            {/* Vertical Segment (Anchored below Export) */}
+            <div className="flex flex-col gap-4">
+              <button onClick={() => setIsGlobalView(!isGlobalView)} className={`p-3.5 rounded-full border transition-all shadow-xl ${isGlobalView ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Global/Family View"><Users className="w-4 h-4" /></button>
+              <button onClick={toggleTheme} className="p-3.5 bg-white dark:bg-white/5 rounded-full border border-gray-200 dark:border-white/5 shadow-xl transition-all hover:bg-gray-100 dark:hover:bg-white/10" title="Theme">
+                {theme === 'light' ? <Moon className="w-4 h-4 text-gray-500" /> : <Sun className="w-4 h-4 text-white/40" />}
+              </button>
+              <button onClick={() => setShowDescription(!showDescription)} className={`p-3.5 rounded-full border transition-all shadow-xl ${showDescription ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Description"><AlignLeft className="w-4 h-4" /></button>
+              <button onClick={() => setNoteMode(!noteMode)} className={`p-3.5 rounded-full border transition-all shadow-xl ${noteMode ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Note Mode"><StickyNote className="w-4 h-4" /></button>
+              <button onClick={() => setIsShuffleGallery(!isShuffleGallery)} className={`p-3.5 rounded-full border transition-all shadow-xl ${isShuffleGallery ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Shuffle Progression"><Shuffle className="w-4 h-4" /></button>
+            </div>
           </div>
         </motion.header>
+
+        {/* Multi-Selection Control Dropdown */}
+        <AnimatePresence>
+            {selectedIds.size > 0 && showUi && (
+                <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-white/90 dark:bg-black/80 backdrop-blur-2xl border border-gray-200 dark:border-white/10 rounded-full px-6 py-3 flex items-center gap-6 shadow-2xl">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">{selectedIds.size} Selected</span>
+                    <div className="h-4 w-px bg-gray-200 dark:bg-white/10" />
+                    <button onClick={downloadSelected} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:text-emerald-500 transition-colors">
+                        <Download className="w-3 h-3" /> Download
+                    </button>
+                    <div className="h-4 w-px bg-gray-200 dark:bg-white/10" />
+                    <div className="flex items-center gap-2">
+                        <span className="text-[8px] font-black uppercase tracking-tighter text-gray-400">Transfer to:</span>
+                        <select 
+                            onChange={(e) => {
+                                if (e.target.value) {
+                                    transferSelected(e.target.value);
+                                }
+                            }}
+                            className="bg-transparent border-none text-[9px] font-black uppercase tracking-widest focus:ring-0 p-0 pr-6"
+                        >
+                            <option value="">SELECT SUBJECT...</option>
+                            {tree?.people?.map(p => <option key={p.id} value={p.id}>{p.name.toUpperCase()}</option>)}
+                        </select>
+                    </div>
+                    <button onClick={() => setSelectedIds(new Set())} className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-all"><X className="w-3 h-3" /></button>
+                </motion.div>
+            )}
+        </AnimatePresence>
 
         <AnimatePresence mode="wait">
           {filteredMemories.length === 0 ? (
@@ -509,6 +610,23 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                         <StickyNote className="w-4 h-4 text-emerald-500" />
                         <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-900 dark:text-white">Artifact Notes</h2>
                     </div>
+
+                    <div className="mb-8 flex flex-col gap-4">
+                        <textarea 
+                            value={noteInput}
+                            onChange={(e) => setNoteInput(e.target.value)}
+                            placeholder="Add a transmission note..."
+                            className="w-full bg-black/5 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-sm p-4 text-[10px] font-serif italic focus:outline-none focus:border-emerald-500/50 transition-all resize-none"
+                            rows={3}
+                        />
+                        <button 
+                            onClick={handleSendNote}
+                            className="w-full py-3 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-sm hover:bg-emerald-400 transition-all shadow-lg active:scale-95"
+                        >
+                            Add Note
+                        </button>
+                    </div>
+
                     <div className="flex-1 overflow-y-auto space-y-6 no-scrollbar">
                         {artifactMessages.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 text-center opacity-20">
@@ -537,21 +655,40 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
             </motion.div>
           ) : (
             <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 overflow-y-auto p-10 pt-32 custom-scrollbar" onClick={() => setShowUi(false)}>
-              <div className={`grid ${getGridCols()} gap-6 max-w-[1800px] mx-auto pb-20`}>
-                {filteredMemories.map((m, idx) => (
-                  <motion.div key={m.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.02 }} className="relative aspect-square bg-gray-100 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-sm overflow-hidden cursor-pointer group hover:border-gray-400 dark:hover:border-white/20 transition-all shadow-xl">
-                      <div onClick={() => { setCurrentIndex(idx); setViewMode('theatre'); }} className="w-full h-full">
+              <Reorder.Group 
+                axis="y" 
+                values={orderedMemories} 
+                onReorder={(newOrder) => {
+                    setOrderedMemories(newOrder);
+                    setCustomOrder(newOrder.map(m => m.id));
+                }}
+                className={`grid ${getGridCols()} gap-6 max-w-[1800px] mx-auto pb-20`}
+              >
+                {orderedMemories.map((m, idx) => (
+                  <Reorder.Item 
+                    key={m.id} 
+                    value={m}
+                    initial={{ opacity: 0, y: 20 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    transition={{ delay: idx * 0.01 }} 
+                    className="relative aspect-square bg-gray-100 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-sm overflow-hidden cursor-move group hover:border-gray-400 dark:hover:border-white/20 transition-all shadow-xl"
+                  >
+                      <div onClick={() => { 
+                          const actualIdx = filteredMemories.findIndex(fm => fm.id === m.id);
+                          setCurrentIndex(actualIdx !== -1 ? actualIdx : 0); 
+                          setViewMode('theatre'); 
+                      }} className="w-full h-full">
                         {m.type === 'video' || m.name.endsWith('.mp4') ? (
                             <div className="w-full h-full bg-black flex items-center justify-center"><Play className="w-12 h-12 text-white/20" /></div>
                         ) : (
-                            <ResolvedImage src={m.photoUrl || m.url || ''} alt={m.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110" />
+                            <ResolvedImage src={m.photoUrl || m.url || ''} alt={m.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110 pointer-events-none" />
                         )}
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); toggleSelection(m.id); }} className={`absolute top-2 right-2 p-2 rounded-full transition-all ${selectedIds.has(m.id) ? 'bg-emerald-500 text-white opacity-100' : 'bg-black/50 text-white/50 opacity-0 group-hover:opacity-100 hover:bg-black/80 hover:text-white'}`}>{selectedIds.has(m.id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}</button>
-                      <button onClick={(e) => { e.stopPropagation(); downloadSingle(m); }} className="absolute bottom-2 right-2 p-2 bg-black/50 text-white/50 rounded-full opacity-0 group-hover:opacity-100 hover:bg-white hover:text-black transition-all"><Download className="w-4 h-4" /></button>
-                  </motion.div>
+                      <button onClick={(e) => { e.stopPropagation(); toggleSelection(m.id); }} className={`absolute top-2 right-2 p-2 rounded-full transition-all z-20 ${selectedIds.has(m.id) ? 'bg-emerald-500 text-white opacity-100' : 'bg-black/50 text-white/50 opacity-0 group-hover:opacity-100 hover:bg-black/80 hover:text-white'}`}>{selectedIds.has(m.id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}</button>
+                      <button onClick={(e) => { e.stopPropagation(); downloadSingle(m); }} className="absolute bottom-2 right-2 p-2 bg-black/50 text-white/50 rounded-full opacity-0 group-hover:opacity-100 hover:bg-white hover:text-black transition-all z-20"><Download className="w-4 h-4" /></button>
+                  </Reorder.Item>
                 ))}
-              </div>
+              </Reorder.Group>
             </motion.div>
           )}
         </AnimatePresence>

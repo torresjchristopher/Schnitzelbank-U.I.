@@ -136,8 +136,7 @@ export class ChatService {
   subscribeToAllChats(participantId: string, onUpdate: (chats: ChatSession[]) => void) {
     const q = query(
       collection(db, 'chats'),
-      where('participants', 'array-contains', participantId),
-      orderBy('updatedAt', 'desc')
+      where('participants', 'array-contains', participantId)
     );
 
     return onSnapshot(q, (snapshot) => {
@@ -145,6 +144,14 @@ export class ChatService {
         id: doc.id,
         ...doc.data()
       })) as ChatSession[];
+      
+      // Sort locally to avoid needing a composite index
+      chats.sort((a, b) => {
+        const timeA = a.updatedAt?.seconds || 0;
+        const timeB = b.updatedAt?.seconds || 0;
+        return timeB - timeA;
+      });
+      
       onUpdate(chats);
     });
   }

@@ -217,7 +217,7 @@ export default function BiographyPage({ tree, currentFamily }: BiographyPageProp
                                         type="text" 
                                         value={editBirthDate} 
                                         onChange={(e) => setEditBirthDate(e.target.value)}
-                                        placeholder="DD/MM/YYYY"
+                                        placeholder="MM/DD/YYYY"
                                         className="bg-transparent border-b border-gray-200 dark:border-white/20 text-xl font-serif italic outline-none focus:border-emerald-500 transition-all w-full"
                                     />
                                 ) : (

@@ -176,6 +176,23 @@ class PersistenceServiceImpl {
     }
   }
 
+  async transferArtifacts(artifactIds: string[], targetPersonId: string, protocolKey: string, memories: Memory[]): Promise<void> {
+    for (const id of artifactIds) {
+        const memory = memories.find(m => m.id === id);
+        if (!memory) continue;
+
+        const updatedMemory = {
+            ...memory,
+            tags: {
+                ...memory.tags,
+                personIds: [targetPersonId]
+            }
+        };
+
+        await this.saveMemorySync(updatedMemory, protocolKey);
+    }
+  }
+
   /**
    * Setup online/offline network listeners
    */
