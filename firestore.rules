@@ -2,29 +2,28 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 1. Allow the app to look up Family Slugs
+    // 1. Family Configuration (Public Read, Admin Write)
     match /families/{slug} {
       allow read: if true; 
       allow write: if false; 
     }
 
-    // 2. Allow access to the Artifact Trees
+    // 2. Memory Tree Data (Read/Write for App)
     match /trees/{treeId}/{document=**} {
       allow read, write: if true;
     }
 
-    // 3. Messaging Rules
+    // 3. Messaging & Chats (Participants Only)
     match /chats/{chatId}/{document=**} {
       allow read, write: if true; 
     }
 
-    // 4. Collection Group Rules for Artifact Annotations
-    // REQUIRED: Match the collection name explicitly for collection group queries
-    match /messages/{messageId} {
+    // 4. Notes Index (App Read/Write)
+    match /notes_index/{id} {
       allow read, write: if true;
     }
-    
-    // Recursive match for nested messages
+
+    // 5. Collection Group for Artifact Notes (App Read/Write)
     match /{path=**}/messages/{messageId} {
       allow read, write: if true;
     }

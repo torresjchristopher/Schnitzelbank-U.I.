@@ -210,6 +210,18 @@ function App() {
           protocolKey: activeProtocol,
           familyName: activeName,
         };
+
+        // SELF-HEALING IDENTITY: Match local ID to official tree ID
+        if (currentUser && next.people.length > 0) {
+            const officialPerson = next.people.find(p => p.id.toLowerCase() === currentUser.id.toLowerCase());
+            if (officialPerson && (officialPerson.id !== currentUser.id || officialPerson.name !== currentUser.name)) {
+                console.log("Healing identity mismatch:", currentUser.id, "->", officialPerson.id);
+                const healed = { ...currentUser, id: officialPerson.id, name: officialPerson.name };
+                setCurrentUser(healed);
+                localStorage.setItem('schnitzel_identity', JSON.stringify(healed));
+            }
+        }
+
         return next;
       });
       setConnectionError(null); 

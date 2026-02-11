@@ -28,6 +28,8 @@ export interface ChatSession {
   id: string;
   participants: string[];
   lastMessage?: string;
+  lastSenderName?: string;
+  lastSenderPersonId?: string;
   updatedAt: any;
 }
 
@@ -41,26 +43,32 @@ export class ChatService {
     return ChatService.instance;
   }
 
-  // Generate a deterministic ID for 1-on-1 or group chats based on sorted participant IDs
   private getChatId(participantIds: string[]): string {
-    return [...participantIds].sort().join('--');
+    return this.normalizeParticipantIds(participantIds).join('--');
   }
 
-  async sendMessage(participantIds: string[], senderId: string, senderName: string, text: string, artifact?: { id: string, name: string }, senderPersonId?: string) {
-    const chatId = this.getChatId(participantIds);
+  public normalizeParticipantIds(participantIds: string[]): string[] {
+    return Array.from(new Set(participantIds.filter(Boolean).map(id => id.toLowerCase()))).sort();
+  }
+
+  async sendMessage(participantIds: string[], currentFamilySlug: string, senderName: string, text: string, artifact?: { id: string, name: string }, senderPersonId?: string) {
+    const normalizedParticipants = this.normalizeParticipantIds(participantIds);
+    const chatId = normalizedParticipants.join('--');
     const chatRef = doc(db, 'chats', chatId);
     const messagesRef = collection(db, 'chats', chatId, 'messages');
 
-    // Ensure chat session exists
+    // Update Chat Session Metadata
     await setDoc(chatRef, {
-      participants: participantIds,
+      participants: normalizedParticipants,
       updatedAt: serverTimestamp(),
-      lastMessage: text
+      lastMessage: text,
+      lastSenderName: senderName,
+      lastSenderPersonId: senderPersonId || null
     }, { merge: true });
 
-    // Add message
+    // Add Message
     await addDoc(messagesRef, {
-      senderId,
+      senderId: currentFamilySlug,
       senderName,
       senderPersonId: senderPersonId || null,
       text,
@@ -68,6 +76,19 @@ export class ChatService {
       artifactName: artifact?.name || null,
       timestamp: serverTimestamp()
     });
+
+    // FLAT INDEX UPDATE: Critical for reliable Note Mode filtering without collectionGroup
+    if (artifact) {
+        try {
+            await setDoc(doc(db, 'notes_index', `${currentFamilySlug}--${artifact.id}`), {
+                familySlug: currentFamilySlug,
+                artifactId: artifact.id,
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+        } catch (e) {
+            console.error("Flat index update failed:", e);
+        }
+    }
   }
 
   subscribeToMessages(participantIds: string[], onUpdate: (messages: ChatMessage[]) => void) {
@@ -92,12 +113,11 @@ export class ChatService {
     const term = searchTerm.toLowerCase();
     const results: any[] = [];
 
-    // 1. Search Families
     try {
         const familiesSnap = await getDocs(collection(db, 'families'));
         familiesSnap.forEach(doc => {
           const data = doc.data();
-          if (data.slug !== currentFamilySlug && (data.name.toLowerCase().includes(term) || data.slug.toLowerCase().includes(term))) {
+          if (data.slug && data.slug.toLowerCase() !== (currentFamilySlug || '').toLowerCase() && (data.name.toLowerCase().includes(term) || data.slug.toLowerCase().includes(term))) {
             results.push({ id: data.slug, name: data.name, type: 'family' });
           }
         });
@@ -127,7 +147,6 @@ export class ChatService {
   }
 
   subscribeToArtifactMessages(artifactId: string, onUpdate: (messages: ChatMessage[]) => void) {
-    // REMOVED orderBy to prevent INTERNAL ASSERTION FAILED / index requirement issues in collection groups
     const q = query(
       collectionGroup(db, 'messages'),
       where('artifactId', '==', artifactId)
@@ -139,23 +158,23 @@ export class ChatService {
         ...doc.data()
       })) as ChatMessage[];
       
-      // Sort locally
       messages.sort((a, b) => {
           const tA = a.timestamp?.seconds || 0;
           const tB = b.timestamp?.seconds || 0;
-          return tB - tA; // Newest first for notes
+          return tB - tA; // Newest first
       });
       
       onUpdate(messages);
     }, (error) => {
-        console.error(`Artifact message subscription failed for ${artifactId}:`, error);
+        console.error(`Artifact message sub failed for ${artifactId}:`, error);
     });
   }
 
   subscribeToAllChats(participantId: string, onUpdate: (chats: ChatSession[]) => void) {
+    const normId = participantId.toLowerCase();
     const q = query(
       collection(db, 'chats'),
-      where('participants', 'array-contains', participantId)
+      where('participants', 'array-contains', normId)
     );
 
     return onSnapshot(q, (snapshot) => {
@@ -164,7 +183,6 @@ export class ChatService {
         ...doc.data()
       })) as ChatSession[];
       
-      // Sort locally
       chats.sort((a, b) => {
         const timeA = a.updatedAt?.seconds || 0;
         const timeB = b.updatedAt?.seconds || 0;
@@ -194,18 +212,45 @@ export class ChatService {
     });
   }
 
-  async getNotedArtifactIds(): Promise<string[]> {
+  async getNotedArtifactIds(familySlug: string): Promise<string[]> {
     try {
-        const q = query(collectionGroup(db, 'messages'));
+        const q = query(
+            collection(db, 'notes_index'), 
+            where('familySlug', '==', familySlug)
+        );
         const snap = await getDocs(q);
         const ids = new Set<string>();
         snap.forEach(doc => {
-            const data = doc.data();
-            if (data.artifactId) ids.add(data.artifactId);
+            const aid = doc.data().artifactId;
+            if (aid) ids.add(aid);
         });
         return Array.from(ids);
     } catch (e) {
-        console.error("Failed to fetch noted artifact IDs", e);
+        console.error("Failed to fetch noted artifact IDs via flat index. Error:", e);
+        return [];
+    }
+  }
+
+  async getAllNotesForFamily(familySlug: string): Promise<ChatMessage[]> {
+    try {
+        const q = query(
+            collectionGroup(db, 'messages'),
+            where('senderId', '==', familySlug || '')
+        );
+        const snap = await getDocs(q);
+        const messages = snap.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage))
+            .filter(m => !!m.artifactId);
+            
+        messages.sort((a, b) => {
+            const tA = a.timestamp?.seconds || 0;
+            const tB = b.timestamp?.seconds || 0;
+            return tB - tA;
+        });
+        
+        return messages;
+    } catch (e) {
+        console.error("Failed to fetch all notes for family:", e);
         return [];
     }
   }

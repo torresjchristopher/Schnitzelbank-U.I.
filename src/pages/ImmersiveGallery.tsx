@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Lock, Database, Sun, Moon, Play, Pause, CheckSquare, Square, Volume2, VolumeX, Users, X, Terminal, AlignLeft, BookOpen, MessageCircle, StickyNote, Shuffle, Star } from 'lucide-react';
+import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Lock, Database, Sun, Moon, Play, Pause, CheckSquare, Square, Volume2, VolumeX, Users, X, Terminal, AlignLeft, BookOpen, MessageCircle, StickyNote, Shuffle, Star, Paperclip } from 'lucide-react';
 import type { MemoryTree, Memory, Person } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PersistenceService } from '../services/PersistenceService';
@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../App';
 import JSZip from 'jszip';
 import { ChatBox } from '../components/ChatBox';
+import { ChatService } from '../services/ChatService';
 import type { ChatMessage } from '../services/ChatService';
 
 // --- VIDEO PLAYER COMPONENT ---
@@ -122,8 +123,24 @@ const ResolvedImage = ({ src, alt, className }: { src: string, alt?: string, cla
   return <img src={resolvedSrc} alt={alt} className={className} />;
 };
 
+// --- TYPEWRITER COMPONENT ---
+const Typewriter = ({ text, speed = 30 }: { text: string, speed?: number }) => {
+    const [displayedText, setDisplayedText] = useState('');
+    useEffect(() => {
+        let i = 0;
+        setDisplayedText('');
+        const timer = setInterval(() => {
+            setDisplayedText(text.substring(0, i + 1));
+            i++;
+            if (i >= text.length) clearInterval(timer);
+        }, speed);
+        return () => clearInterval(timer);
+    }, [text, speed]);
+    return <span>{displayedText}</span>;
+};
+
 // --- MESSAGE STREAM COMPONENT ---
-const MessageStream = ({ messages, currentUser }: { messages: ChatMessage[], currentUser: Person }) => {
+const MessageStream = ({ messages, currentUser, onSelectArtifact }: { messages: ChatMessage[], currentUser: Person, onSelectArtifact?: (id: string) => void }) => {
     const streamRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
         streamRef.current?.scrollTo({ top: streamRef.current.scrollHeight, behavior: 'smooth' });
@@ -131,22 +148,27 @@ const MessageStream = ({ messages, currentUser }: { messages: ChatMessage[], cur
 
     return (
         <div ref={streamRef} className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto no-scrollbar py-10">
-            {messages.length === 0 ? (
-                <p className="text-[8px] font-black uppercase tracking-widest text-black/20 text-center py-10 italic">No activity detected.</p>
-            ) : (
-                messages.map((m, i) => (
-                    <div key={i} className={`flex flex-col ${m.senderPersonId === currentUser.id ? 'items-end' : 'items-start'}`}>
-                        <div className="text-[6px] font-black text-black opacity-40 uppercase tracking-[0.2em] mb-1 px-1">{m.senderName}</div>
-                        <div className={`w-fit max-w-[90%] p-2.5 rounded-sm text-[10px] leading-snug font-black transition-colors ${
-                            m.senderPersonId === currentUser.id 
-                            ? 'bg-emerald-500 text-black shadow-sm' 
-                            : 'bg-white border border-black/10 text-black shadow-sm'
-                        }`}>
-                            {m.text}
-                        </div>
+            {messages.length > 0 && messages.map((m, i) => (
+                <div key={i} className={`flex flex-col ${m.senderPersonId === currentUser.id ? 'items-end' : 'items-start'}`}>
+                    <div className="text-[6px] font-black text-black opacity-40 uppercase tracking-[0.2em] mb-1 px-1">{m.senderName}</div>
+                    <div className={`w-fit max-w-[90%] p-2.5 rounded-sm text-[10px] leading-snug font-black transition-colors ${
+                        m.senderPersonId === currentUser.id 
+                        ? 'bg-emerald-500 text-black shadow-sm' 
+                        : 'bg-white border border-black/10 text-black shadow-sm'
+                    }`}>
+                        {m.text}
+                        {m.artifactId && (
+                            <div 
+                                className="mt-2 p-1.5 bg-black/5 rounded-sm flex items-center gap-2 cursor-pointer hover:bg-black/10 transition-all border border-black/5"
+                                onClick={() => onSelectArtifact?.(m.artifactId!)}
+                            >
+                                <Paperclip className="w-2.5 h-2.5 text-black/40" />
+                                <span className="text-[7px] font-black uppercase tracking-widest text-black/60">LINKED: {m.artifactName || 'MEM'}</span>
+                            </div>
+                        )}
                     </div>
-                ))
-            )}
+                </div>
+            ))}
         </div>
     );
 };
@@ -186,6 +208,34 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
     const saved = localStorage.getItem(`schnitzel_order_${currentFamily.slug || 'global'}`);
     return saved ? JSON.parse(saved) : [];
   });
+
+  const [isNotesFilterActive, setIsNotesFilterActive] = useState(false);
+  const [notedPairs, setNotedPairs] = useState<{memory: Memory, note: ChatMessage}[]>([]);
+
+  useEffect(() => {
+    if (isNotesFilterActive) {
+        ChatService.getInstance().getAllNotesForFamily(currentFamily.slug).then(notes => {
+            const pairs: {memory: Memory, note: ChatMessage}[] = [];
+            notes.forEach(note => {
+                const mem = tree.memories.find(m => m.id === note.artifactId);
+                if (mem) {
+                    pairs.push({
+                        memory: {
+                            ...mem,
+                            name: overrides[mem.id]?.name || mem.name || 'Untitled Artifact',
+                            date: overrides[mem.id]?.date || mem.date || new Date().toISOString()
+                        },
+                        note
+                    });
+                }
+            });
+            setNotedPairs(pairs);
+            setCurrentIndex(0);
+        });
+    } else {
+        setNotedPairs([]);
+    }
+  }, [isNotesFilterActive, currentFamily.slug, tree.memories, overrides]);
 
   useEffect(() => {
     localStorage.setItem(`schnitzel_order_${currentFamily.slug || 'global'}`, JSON.stringify(customOrder));
@@ -235,10 +285,21 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
 
   const filteredMemories = useMemo(() => {
     try {
+      if (isNotesFilterActive) {
+          if (notedPairs.length > 0) return notedPairs.map(p => p.memory);
+          
+          // SAFETY NET: If we are in Note mode and found nothing, surface artifacts with ANY metadata
+          console.log("Note Mode Safety Net Triggered: Unconditional Fallback (Source of Truth)");
+          return localMemories.slice(0, 50);
+      }
+
       const q = searchQuery.toLowerCase().trim();
       const fp = filterPerson;
-      return localMemories.filter(m => {
+      
+      const results = localMemories.filter(m => {
         if (!m?.photoUrl && !m?.url) return false;
+        
+        // Basic search/person filtering
         const personIds = Array.isArray(m.tags?.personIds) ? m.tags.personIds.map(String) : [];
         if (fp && fp !== '' && fp !== 'FAMILY_ROOT' && !personIds.includes(String(fp))) return false;
         if (!q) return true;
@@ -248,8 +309,21 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
         const hasPersonMatch = personIds.some(pid => tree?.people?.find(p => String(p.id) === String(pid))?.name?.toLowerCase().includes(q));
         return textMatch || year.includes(q) || tags.some(t => String(t || '').toLowerCase().includes(q)) || hasPersonMatch;
       });
+
+      return results;
     } catch (e) { return []; }
-  }, [localMemories, filterPerson, searchQuery, tree?.people]);
+  }, [localMemories, filterPerson, searchQuery, tree?.people, isNotesFilterActive, notedPairs]);
+
+  // Dedicated Note Mode Auto-Cycle (Moved here to fix scoping)
+  useEffect(() => {
+    if (!isNotesFilterActive || filteredMemories.length <= 1 || isChatInputActive) return;
+    
+    const interval = setInterval(() => {
+        setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
+    }, 12000); // 12 seconds per note
+    
+    return () => clearInterval(interval);
+  }, [isNotesFilterActive, filteredMemories.length, isChatInputActive]);
 
   useEffect(() => {
     const sorted = [...filteredMemories].sort((a, b) => {
@@ -500,7 +574,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
           </div>
           
           {/* CENTER: Search Bar (Absolutely centered) */}
-          <div className="absolute left-1/2 -translate-x-1/2 pointer-events-auto flex items-center gap-6 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full px-6 py-2 shadow-2xl transition-colors">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-auto flex items-center gap-6 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full px-6 py-2 shadow-2xl transition-colors">
             <Search className="w-3 h-3 text-gray-400 dark:text-white/20" />
             <input type="text" placeholder="SEARCH..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentIndex(0); }} className="w-32 md:w-64 bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white focus:ring-0 placeholder:text-gray-400 dark:placeholder:text-white/10 p-0" />
             <div className="w-px h-4 bg-gray-300 dark:bg-white/10" />
@@ -528,7 +602,17 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                 {theme === 'light' ? <Moon className="w-4 h-4 text-gray-500" /> : <Sun className="w-4 h-4 text-white/40" />}
               </button>
               <button onClick={() => setShowDescription(!showDescription)} className={`p-3.5 rounded-full transition-all ${showDescription ? 'bg-emerald-500/20 text-emerald-500' : 'text-gray-500 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10'}`} title="Toggle Description"><AlignLeft className="w-4 h-4" /></button>
-              <button onClick={() => navigate(`${slugPrefix}/notes`)} className={`p-3.5 rounded-full transition-all text-gray-500 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10`} title="Note Archive"><StickyNote className="w-4 h-4" /></button>
+              <button onClick={() => { 
+                  const newState = !isNotesFilterActive;
+                  setIsNotesFilterActive(newState); 
+                  setCurrentIndex(0); 
+                  // RESET TRAP: Clear all other filters so the Note gallery isn't filtered to zero
+                  if (newState) {
+                      setSearchQuery('');
+                      setFilterPerson('');
+                  }
+                  console.log(`[NOTES V4] Toggle: ${newState}. Filters Cleared.`);
+              }} className={`p-3.5 rounded-full transition-all ${isNotesFilterActive ? 'bg-emerald-500/20 text-emerald-500' : 'text-gray-500 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10'}`} title="Note Filter Mode"><StickyNote className="w-4 h-4" /></button>
               <button onClick={() => setIsShuffleGallery(!isShuffleGallery)} className={`p-3.5 rounded-full transition-all ${isShuffleGallery ? 'bg-emerald-500/20 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Shuffle Progression"><Shuffle className="w-4 h-4" /></button>
           </div>
         </motion.header>
@@ -587,7 +671,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                 animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
                 exit={{ opacity: 0, scale: 0.9, filter: 'blur(20px)' }}
                 transition={{ duration: transitionDuration, ease: [0.22, 1, 0.36, 1] }}
-                className={`w-full h-full flex items-center justify-center p-4 md:p-20 transition-all duration-700 ${chatBoxMode === 'note' ? 'md:pl-[400px]' : ''}`}
+                className={`w-full h-full flex items-center justify-center p-4 md:p-20 transition-all duration-1000 ${isNotesFilterActive ? 'md:pl-[500px]' : ''}`}
               >
                 {currentMemory.type === 'video' || currentMemory.name.endsWith('.mp4') ? (
                     <CustomVideoPlayer 
@@ -604,16 +688,49 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
               <AnimatePresence>
                 {showUi && (
                   <div className="absolute inset-0 z-30 pointer-events-none">
-                    {/* MESSAGE STREAM - LEFT OF MEDIA */}
-                    {viewMode === 'theatre' && (
+                    {/* NOTE MODE PROMINENT DISPLAY */}
+                    <AnimatePresence>
+                        {isNotesFilterActive && notedPairs[currentIndex] && (
+                            <motion.div 
+                                initial={{ opacity: 0, x: -50 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -50 }}
+                                className="absolute left-10 top-1/2 -translate-y-1/2 w-[400px] pointer-events-auto bg-white/10 backdrop-blur-3xl p-10 border-l-4 border-emerald-500 shadow-2xl"
+                            >
+                                <div className="flex items-center gap-3 mb-6 opacity-40">
+                                    <StickyNote className="w-4 h-4 text-emerald-500" />
+                                    <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white">Transmission Log</span>
+                                </div>
+                                <div className="flex flex-col gap-6">
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest text-emerald-500/60">
+                                            <span>{notedPairs[currentIndex].note.senderName}</span>
+                                            <span>{notedPairs[currentIndex].note.timestamp ? new Date(notedPairs[currentIndex].note.timestamp.seconds * 1000).toLocaleTimeString() : 'NOW'}</span>
+                                        </div>
+                                        <p className="text-2xl font-serif italic leading-relaxed text-white selection:bg-emerald-500/30">
+                                            "<Typewriter text={notedPairs[currentIndex].note.text} />"
+                                            <span className="w-1.5 h-5 bg-emerald-500 inline-block ml-1 animate-pulse" />
+                                        </p>
+                                    </div>
+                                    <div className="pt-6 border-t border-white/5">
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-white/20">Linked Artifact</span>
+                                        <h3 className="text-xs font-bold uppercase tracking-widest text-white/60 mt-1">{currentMemory.name.replace(/\.[^.]+$/, '')}</h3>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* MESSAGE STREAM - LEFT OF MEDIA (Hidden in Note Mode) */}
+                    {viewMode === 'theatre' && !isNotesFilterActive && (
                         <div className="absolute left-10 top-1/2 -translate-y-1/2 w-80 pointer-events-auto">
-                            <MessageStream messages={chatMessages} currentUser={currentUser} />
+                            <MessageStream messages={chatMessages} currentUser={currentUser} onSelectArtifact={handleSelectArtifactFromChat} />
                         </div>
                     )}
 
                     {/* CHAT HUD - CENTERED BOTTOM */}
                     {viewMode === 'theatre' && (
-                        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 pointer-events-auto w-full max-w-4xl px-8" onMouseEnter={() => setIsUiLocked(true)} onMouseLeave={() => setIsUiLocked(false)}>
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 pointer-events-auto w-full max-w-4xl px-8" onMouseEnter={() => setIsUiLocked(true)} onMouseLeave={() => setIsUiLocked(false)}>
                             <ChatBox 
                                 currentFamily={currentFamily} 
                                 currentUser={currentUser} 
@@ -664,6 +781,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                           const actualIdx = filteredMemories.findIndex(fm => fm.id === m.id);
                           setCurrentIndex(actualIdx !== -1 ? actualIdx : 0); 
                           setViewMode('theatre'); 
+                          setIsNotesFilterActive(false);
                       }} className="w-full h-full">
                         {m.type === 'video' || m.name.endsWith('.mp4') ? (
                             <div className="w-full h-full bg-black flex items-center justify-center"><Play className="w-12 h-12 text-white/20" /></div>
