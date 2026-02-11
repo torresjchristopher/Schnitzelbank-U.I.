@@ -183,27 +183,46 @@ export class ChatService {
 
   subscribeToAllChats(participantId: string, onUpdate: (chats: ChatSession[]) => void) {
     const normId = participantId.toLowerCase();
-    const q = query(
+    
+    // Query both original (mixed-case) and normalized (lowercase) to ensure history isn't lost
+    const q1 = query(
+      collection(db, 'chats'),
+      where('participants', 'array-contains', participantId)
+    );
+    
+    const q2 = query(
       collection(db, 'chats'),
       where('participants', 'array-contains', normId)
     );
 
-    return onSnapshot(q, (snapshot) => {
-      const chats = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as ChatSession[];
-      
-      chats.sort((a, b) => {
-        const timeA = a.updatedAt?.seconds || 0;
-        const timeB = b.updatedAt?.seconds || 0;
-        return timeB - timeA;
-      });
-      
-      onUpdate(chats);
-    }, (error) => {
-        console.error("Chat subscription failed:", error);
+    let chats1: ChatSession[] = [];
+    let chats2: ChatSession[] = [];
+
+    const handleUpdate = () => {
+        const combined = [...chats1, ...chats2];
+        const unique = Array.from(new Map(combined.map(c => [c.id, c])).values());
+        unique.sort((a, b) => {
+            const timeA = a.updatedAt?.seconds || 0;
+            const timeB = b.updatedAt?.seconds || 0;
+            return timeB - timeA;
+        });
+        onUpdate(unique);
+    };
+
+    const unsub1 = onSnapshot(q1, (snap) => {
+        chats1 = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatSession));
+        handleUpdate();
     });
+
+    const unsub2 = onSnapshot(q2, (snap) => {
+        chats2 = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatSession));
+        handleUpdate();
+    });
+
+    return () => {
+        unsub1();
+        unsub2();
+    };
   }
 
   subscribeToGlobalBroadcasts(onUpdate: (chats: ChatSession[]) => void) {
@@ -244,29 +263,30 @@ export class ChatService {
 
   async getAllNotesForFamily(familySlug: string): Promise<ChatMessage[]> {
     try {
-        // PRIMARY: Use the dedicated family notes collection (No index required for single-collection query)
+        // PRIMARY: Use the dedicated family notes collection
+        // REMOVE orderBy to avoid "Insufficient Permissions" which can be a masked missing index error
         const q = query(
-            collection(db, 'families', familySlug || 'global', 'notes'),
-            orderBy('timestamp', 'desc')
+            collection(db, 'families', familySlug || 'global', 'notes')
         );
         const snap = await getDocs(q);
         
+        let messages: ChatMessage[] = [];
+        
         if (!snap.empty) {
-            return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage));
+            messages = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage));
+        } else {
+            // FALLBACK: If new collection is empty, try collectionGroup (Legacy notes)
+            const fallbackQ = query(
+                collectionGroup(db, 'messages'),
+                where('senderId', '==', familySlug || '')
+            );
+            const fallbackSnap = await getDocs(fallbackQ);
+            messages = fallbackSnap.docs
+                .map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage))
+                .filter(m => !!m.artifactId);
         }
 
-        // FALLBACK: If new collection is empty, try collectionGroup (Legacy notes)
-        // Note: This will trigger the index error if the index isn't created, but 
-        // new notes will start appearing immediately via the primary query above.
-        const fallbackQ = query(
-            collectionGroup(db, 'messages'),
-            where('senderId', '==', familySlug || '')
-        );
-        const fallbackSnap = await getDocs(fallbackQ);
-        const messages = fallbackSnap.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage))
-            .filter(m => !!m.artifactId);
-            
+        // Sort client-side
         messages.sort((a, b) => {
             const tA = a.timestamp?.seconds || 0;
             const tB = b.timestamp?.seconds || 0;

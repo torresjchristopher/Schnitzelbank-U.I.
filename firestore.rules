@@ -27,8 +27,13 @@ service cloud.firestore {
     }
 
     // 5. Collection Group for Artifact Notes (App Read/Write)
-    match /{path=**}/messages/{messageId} {
-      allow read, write: if true;
-    }
-  }
-}
+            match /{path=**}/messages/{messageId} {
+              allow read, write: if true;
+            }
+    
+            match /{path=**}/notes/{noteId} {
+              allow read, write: if true;
+            }
+          }
+        }
+    
