@@ -9,8 +9,7 @@ import {
   getDocs,
   setDoc,
   doc,
-  where,
-  collectionGroup
+  where
 } from 'firebase/firestore';
 
 export interface ChatMessage {
