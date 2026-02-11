@@ -43,10 +43,6 @@ export class ChatService {
     return ChatService.instance;
   }
 
-  private getChatId(participantIds: string[]): string {
-    return this.normalizeParticipantIds(participantIds).join('--');
-  }
-
   public normalizeParticipantIds(participantIds: string[]): string[] {
     return Array.from(new Set(participantIds.filter(Boolean).map(id => id.toLowerCase()))).sort();
   }
