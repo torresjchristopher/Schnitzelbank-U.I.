@@ -80,15 +80,17 @@ export class ChatService {
     // FLAT INDEX UPDATE: Critical for reliable Note Mode filtering without collectionGroup
     if (artifact) {
         try {
+            const safeSlug = currentFamilySlug || 'MURRAY_LEGACY';
+
             // 1. Maintain the "artifact updated" index
-            await setDoc(doc(db, 'notes_index', `${currentFamilySlug}--${artifact.id}`), {
+            await setDoc(doc(db, 'notes_index', `${safeSlug}--${artifact.id}`), {
                 familySlug: currentFamilySlug,
                 artifactId: artifact.id,
                 updatedAt: serverTimestamp()
             }, { merge: true });
 
             // 2. Add to dedicated family_notes collection for efficient "Repeat Artifact" mode
-            await addDoc(collection(db, 'families', currentFamilySlug || 'global', 'notes'), {
+            await addDoc(collection(db, 'families', safeSlug, 'notes'), {
                 artifactId: artifact.id,
                 text,
                 senderName,
@@ -102,8 +104,7 @@ export class ChatService {
     }
   }
 
-  subscribeToMessages(participantIds: string[], onUpdate: (messages: ChatMessage[]) => void) {
-    const chatId = this.getChatId(participantIds);
+  subscribeToMessages(chatId: string, onUpdate: (messages: ChatMessage[]) => void) {
     const q = query(
       collection(db, 'chats', chatId, 'messages'),
       orderBy('timestamp', 'asc')
@@ -263,10 +264,12 @@ export class ChatService {
 
   async getAllNotesForFamily(familySlug: string): Promise<ChatMessage[]> {
     try {
+        // Use a safe slug for the path to avoid empty string issues
+        const safeSlug = familySlug || 'MURRAY_LEGACY';
+        
         // PRIMARY: Use the dedicated family notes collection
-        // REMOVE orderBy to avoid "Insufficient Permissions" which can be a masked missing index error
         const q = query(
-            collection(db, 'families', familySlug || 'global', 'notes')
+            collection(db, 'families', safeSlug, 'notes')
         );
         const snap = await getDocs(q);
         
@@ -274,16 +277,29 @@ export class ChatService {
         
         if (!snap.empty) {
             messages = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage));
-        } else {
-            // FALLBACK: If new collection is empty, try collectionGroup (Legacy notes)
+        }
+        
+        // ALWAYS check fallback for legacy notes until migration is complete
+        // but only if we don't have a specific permission error from collectionGroup
+        try {
             const fallbackQ = query(
                 collectionGroup(db, 'messages'),
                 where('senderId', '==', familySlug || '')
             );
             const fallbackSnap = await getDocs(fallbackQ);
-            messages = fallbackSnap.docs
+            const legacyMessages = fallbackSnap.docs
                 .map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage))
                 .filter(m => !!m.artifactId);
+            
+            // Merge and de-duplicate by ID
+            const existingIds = new Set(messages.map(m => m.id));
+            legacyMessages.forEach(m => {
+                if (!existingIds.has(m.id)) {
+                    messages.push(m);
+                }
+            });
+        } catch (fallbackErr) {
+            console.log("Legacy note fetch skipped (likely missing index):", fallbackErr);
         }
 
         // Sort client-side

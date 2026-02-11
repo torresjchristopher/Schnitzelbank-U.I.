@@ -65,13 +65,18 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
   }, [currentUser.id]);
 
   useEffect(() => {
-    if (selectedChat) {
-        const unsub = chatService.subscribeToMessages(selectedChat.participants, setMessages);
+    if (selectedChat && selectedChat.id !== 'temp') {
+        const unsub = chatService.subscribeToMessages(selectedChat.id, setMessages);
+        return unsub;
+    } else if (selectedChat?.id === 'temp') {
+        // For new (temp) chats, we can try to derive the ID but usually it's empty history
+        const chatId = chatService.normalizeParticipantIds(selectedChat.participants).join('--');
+        const unsub = chatService.subscribeToMessages(chatId, setMessages);
         return unsub;
     } else {
         setMessages([]);
     }
-  }, [selectedChat]);
+  }, [selectedChat?.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

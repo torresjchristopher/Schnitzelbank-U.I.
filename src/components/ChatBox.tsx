@@ -38,7 +38,8 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
         unsub = chatService.subscribeToArtifactMessages(attachedArtifact.id, (msgs) => onMessageUpdate?.(msgs));
     } else if (participants.length > 0) {
       const pIds = chatService.normalizeParticipantIds([currentFamily.slug, currentUser.id, ...participants.map(p => p.id)]);
-      unsub = chatService.subscribeToMessages(pIds, (msgs) => onMessageUpdate?.(msgs));
+      const chatId = pIds.join('--');
+      unsub = chatService.subscribeToMessages(chatId, (msgs) => onMessageUpdate?.(msgs));
     } else {
       onMessageUpdate?.([]);
     }
