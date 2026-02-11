@@ -154,9 +154,10 @@ export class ChatService {
     }
   }
 
-  subscribeToArtifactMessages(artifactId: string, onUpdate: (messages: ChatMessage[]) => void) {
+  subscribeToArtifactMessages(artifactId: string, onUpdate: (messages: ChatMessage[]) => void, familySlug?: string) {
+    const safeSlug = familySlug || 'MURRAY_LEGACY';
     const q = query(
-      collectionGroup(db, 'messages'),
+      collection(db, 'families', safeSlug, 'notes'),
       where('artifactId', '==', artifactId)
     );
 
@@ -174,7 +175,9 @@ export class ChatService {
       
       onUpdate(messages);
     }, (error) => {
-        console.error(`Artifact message sub failed for ${artifactId}:`, error);
+        console.error(`Artifact note sub failed for ${artifactId} in ${safeSlug}:`, error);
+        // Fallback to empty list instead of crashing/spamming permissions
+        onUpdate([]);
     });
   }
 
@@ -260,45 +263,12 @@ export class ChatService {
 
   async getAllNotesForFamily(familySlug: string): Promise<ChatMessage[]> {
     try {
-        // Use a safe slug for the path to avoid empty string issues
         const safeSlug = familySlug || 'MURRAY_LEGACY';
-        
-        // PRIMARY: Use the dedicated family notes collection
-        const q = query(
-            collection(db, 'families', safeSlug, 'notes')
-        );
+        const q = query(collection(db, 'families', safeSlug, 'notes'));
         const snap = await getDocs(q);
         
-        let messages: ChatMessage[] = [];
-        
-        if (!snap.empty) {
-            messages = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage));
-        }
-        
-        // ALWAYS check fallback for legacy notes until migration is complete
-        // but only if we don't have a specific permission error from collectionGroup
-        try {
-            const fallbackQ = query(
-                collectionGroup(db, 'messages'),
-                where('senderId', '==', familySlug || '')
-            );
-            const fallbackSnap = await getDocs(fallbackQ);
-            const legacyMessages = fallbackSnap.docs
-                .map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage))
-                .filter(m => !!m.artifactId);
-            
-            // Merge and de-duplicate by ID
-            const existingIds = new Set(messages.map(m => m.id));
-            legacyMessages.forEach(m => {
-                if (!existingIds.has(m.id)) {
-                    messages.push(m);
-                }
-            });
-        } catch (fallbackErr) {
-            console.log("Legacy note fetch skipped (likely missing index):", fallbackErr);
-        }
+        const messages = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage));
 
-        // Sort client-side
         messages.sort((a, b) => {
             const tA = a.timestamp?.seconds || 0;
             const tB = b.timestamp?.seconds || 0;

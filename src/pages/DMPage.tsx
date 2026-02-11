@@ -147,18 +147,19 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
     const mySlug = (currentFamily.slug || '').toLowerCase();
     const myName = currentUser.name.toLowerCase();
 
-    // 1. STRONGLY PRIORITIZE finding the 'other' person in the participants list
-    const otherId = chat.participants.find(id => {
-        if (!id) return false;
-        const norm = id.toLowerCase();
-        return norm !== myId && norm !== mySlug && norm !== 'family_root';
+    // 1. Identify human participants that aren't ME
+    const otherParticipants = chat.participants.filter(p => {
+        const norm = p.toLowerCase();
+        return norm !== myId && norm !== mySlug && norm !== 'family_root' && norm !== 'murray';
     });
-    
-    if (otherId) {
+
+    if (otherParticipants.length > 0) {
+        // Find the best name for the first other human
+        const otherId = otherParticipants[0];
         const person = tree.people.find(p => p.id.toLowerCase() === otherId.toLowerCase());
         if (person) return person.name;
-        
-        // Match by name check
+
+        // Try a name match as backup
         const matchByName = tree.people.find(p => p.name.toLowerCase().includes(otherId.toLowerCase()));
         if (matchByName) return matchByName.name;
 
@@ -168,7 +169,7 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
     // 2. Metadata name fallback - If someone ELSE sent a message, use their name
     if (chat.lastSenderName) {
         const sender = chat.lastSenderName.includes('//') ? chat.lastSenderName.split('//')[1].trim() : chat.lastSenderName;
-        if (!myName.includes(sender.toLowerCase())) {
+        if (!myName.includes(sender.toLowerCase()) && sender.toLowerCase() !== 'murray') {
             return sender;
         }
     }
