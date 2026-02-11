@@ -80,11 +80,22 @@ export class ChatService {
     // FLAT INDEX UPDATE: Critical for reliable Note Mode filtering without collectionGroup
     if (artifact) {
         try {
+            // 1. Maintain the "artifact updated" index
             await setDoc(doc(db, 'notes_index', `${currentFamilySlug}--${artifact.id}`), {
                 familySlug: currentFamilySlug,
                 artifactId: artifact.id,
                 updatedAt: serverTimestamp()
             }, { merge: true });
+
+            // 2. Add to dedicated family_notes collection for efficient "Repeat Artifact" mode
+            await addDoc(collection(db, 'families', currentFamilySlug || 'global', 'notes'), {
+                artifactId: artifact.id,
+                text,
+                senderName,
+                senderPersonId: senderPersonId || null,
+                timestamp: serverTimestamp(),
+                artifactName: artifact.name || null
+            });
         } catch (e) {
             console.error("Flat index update failed:", e);
         }
@@ -233,12 +244,26 @@ export class ChatService {
 
   async getAllNotesForFamily(familySlug: string): Promise<ChatMessage[]> {
     try {
+        // PRIMARY: Use the dedicated family notes collection (No index required for single-collection query)
         const q = query(
+            collection(db, 'families', familySlug || 'global', 'notes'),
+            orderBy('timestamp', 'desc')
+        );
+        const snap = await getDocs(q);
+        
+        if (!snap.empty) {
+            return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage));
+        }
+
+        // FALLBACK: If new collection is empty, try collectionGroup (Legacy notes)
+        // Note: This will trigger the index error if the index isn't created, but 
+        // new notes will start appearing immediately via the primary query above.
+        const fallbackQ = query(
             collectionGroup(db, 'messages'),
             where('senderId', '==', familySlug || '')
         );
-        const snap = await getDocs(q);
-        const messages = snap.docs
+        const fallbackSnap = await getDocs(fallbackQ);
+        const messages = fallbackSnap.docs
             .map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage))
             .filter(m => !!m.artifactId);
             
