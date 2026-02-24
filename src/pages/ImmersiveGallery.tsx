@@ -504,6 +504,11 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
 
           {/* RIGHT: Menu Row */}
           <div className="pointer-events-auto flex items-center gap-3 p-2">
+              {viewMode !== 'theatre' && (
+                <button onClick={cycleGridMode} className="p-3 bg-emerald-500 text-black rounded-full transition-all hover:bg-emerald-400 shadow-xl group" title="Return to Theatre">
+                    <Maximize2 className="w-4 h-4" />
+                </button>
+              )}
               <button onClick={() => navigate(`${slugPrefix}/messages`)} className="p-3 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10 shadow-xl group" title="Messages">
                 <MessageCircle className="w-4 h-4 text-gray-500 dark:text-white/40 group-hover:text-black dark:group-hover:text-white" />
               </button>
@@ -598,29 +603,41 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                     <AnimatePresence>
                         {isNotesFilterActive && notedPairs[currentIndex] && (
                             <motion.div 
-                                initial={{ opacity: 0, x: -50 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -50 }}
-                                className="absolute left-10 top-1/2 -translate-y-1/2 w-[400px] pointer-events-auto bg-white/10 backdrop-blur-3xl p-10 border-l-4 border-emerald-500 shadow-2xl"
+                                initial={{ opacity: 0, scale: 0.9, x: -50 }}
+                                animate={{ opacity: 1, scale: 1, x: 0 }}
+                                exit={{ opacity: 0, scale: 0.9, x: -50 }}
+                                className="absolute left-10 top-1/2 -translate-y-1/2 w-[450px] pointer-events-auto"
                             >
-                                <div className="flex items-center gap-3 mb-6 opacity-60">
-                                    <StickyNote className="w-4 h-4 text-emerald-600" />
-                                    <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black">Transmission Log</span>
-                                </div>
-                                <div className="flex flex-col gap-6">
-                                    <div className="flex flex-col gap-2">
-                                        <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest text-emerald-500/60">
-                                            <span>{notedPairs[currentIndex].note.senderName}</span>
-                                            <span>{notedPairs[currentIndex].note.timestamp ? new Date(notedPairs[currentIndex].note.timestamp.seconds * 1000).toLocaleTimeString() : 'NOW'}</span>
+                                <div className="bg-black/60 backdrop-blur-3xl p-0 shadow-[0_50px_100px_rgba(0,0,0,0.8)] border border-white/10 rounded-sm overflow-hidden">
+                                    <div className="bg-blue-600 px-6 py-2 flex justify-between items-center">
+                                        <div className="flex items-center gap-3">
+                                            <StickyNote className="w-3 h-3 text-white" />
+                                            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white">Transmission Log</span>
                                         </div>
-                                        <p className="text-2xl font-serif italic leading-relaxed text-black selection:bg-emerald-500/30">
-                                            "<Typewriter text={notedPairs[currentIndex].note.text} />"
-                                            <span className="w-1.5 h-5 bg-emerald-500 inline-block ml-1 animate-pulse" />
-                                        </p>
+                                        <span className="text-[8px] font-black text-white/60 tracking-widest">{notedPairs[currentIndex].note.timestamp ? new Date(notedPairs[currentIndex].note.timestamp.seconds * 1000).toLocaleTimeString() : 'NOW'}</span>
                                     </div>
-                                    <div className="pt-6 border-t border-black/10">
-                                        <span className="text-[8px] font-black uppercase tracking-widest text-black/40">Linked Artifact</span>
-                                        <h3 className="text-xs font-bold uppercase tracking-widest text-black/60 mt-1">{currentMemory.name.replace(/\.[^.]+$/, '')}</h3>
+                                    
+                                    <div className="p-10 space-y-8">
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 text-blue-400">
+                                                <div className="w-1 h-1 rounded-full bg-current animate-pulse"></div>
+                                                <span className="text-[8px] font-black uppercase tracking-[0.2em] italic">Origin: {notedPairs[currentIndex].note.senderName}</span>
+                                            </div>
+                                            <p className="text-3xl font-serif italic leading-tight text-white selection:bg-blue-500/30">
+                                                <Typewriter text={notedPairs[currentIndex].note.text} />
+                                                <span className="w-2 h-6 bg-blue-500 inline-block ml-2 animate-pulse align-middle" />
+                                            </p>
+                                        </div>
+
+                                        <div className="pt-8 border-t border-white/5 flex items-center justify-between">
+                                            <div className="flex flex-col">
+                                                <span className="text-[7px] font-black uppercase tracking-widest text-white/30">Registry Identity</span>
+                                                <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/60 mt-1">{currentMemory.name.replace(/\.[^.]+$/, '')}</h3>
+                                            </div>
+                                            <div className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center">
+                                                <Paperclip className="w-4 h-4 text-white/20" />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </motion.div>
