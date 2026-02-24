@@ -43,7 +43,6 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isUiLocked, setIsUiLocked] = useState(false);
-  const [chatBoxMode, setChatBoxMode] = useState<'dm' | 'note'>('dm');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [showDescription, setShowDescription] = useState(true);
   const [isShuffleGallery, setIsShuffleGallery] = useState(false);
@@ -177,7 +176,6 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
             if (next === 0) {
                 console.log("[NOTES V4] Stack expired, exiting Note Mode.");
                 setIsNotesFilterActive(false);
-                setChatBoxMode('dm');
             }
             return next;
         });
@@ -496,12 +494,20 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
             </select>
           </div>
 
-          {/* RIGHT: Status Area */}
-          <div className="pointer-events-auto flex items-center gap-4 p-2">
-              <div className="flex flex-col items-end">
-                  <span className="text-[7px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.3em]">System Protocol</span>
-                  <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest italic">Encrypted</span>
-              </div>
+          {/* RIGHT: Menu Row */}
+          <div className="pointer-events-auto flex items-center gap-3 p-2">
+              <button onClick={() => navigate(`${slugPrefix}/messages`)} className="p-3 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10 shadow-xl group" title="Messages">
+                <MessageCircle className="w-4 h-4 text-gray-500 dark:text-white/40 group-hover:text-black dark:group-hover:text-white" />
+              </button>
+              <button onClick={() => navigate(`${slugPrefix}/upload`)} className="p-3 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10 shadow-xl group" title="Upload">
+                <Upload className="w-4 h-4 text-gray-500 dark:text-white/40 group-hover:text-black dark:group-hover:text-white" />
+              </button>
+              <button onClick={() => navigate(`${slugPrefix}/biography`)} className="p-3 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10 shadow-xl group" title="Biographies">
+                <User className="w-4 h-4 text-gray-500 dark:text-white/40 group-hover:text-black dark:group-hover:text-white" />
+              </button>
+              <button onClick={() => navigate(`${slugPrefix}/export`)} className="p-3 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-2xl hover:opacity-80 transition-all border border-transparent dark:border-white/5" title="Export">
+                <Download className="w-4 h-4" />
+              </button>
           </div>
         </motion.header>
 
@@ -620,7 +626,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                         </div>
                     )}
 
-                    {/* CHAT HUD - CENTERED BOTTOM (Toggled by Metadata Button) */}
+                    {/* CHAT HUD - CENTERED BOTTOM */}
                     {viewMode === 'theatre' && showDescription && (
                         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 pointer-events-auto w-full max-w-4xl px-8" onMouseEnter={() => setIsUiLocked(true)} onMouseLeave={() => setIsUiLocked(false)}>
                             <ChatBox 
@@ -629,18 +635,6 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                                 people={tree.people} 
                                 attachedArtifact={attachedArtifact} 
                                 onSelectArtifact={handleSelectArtifactFromChat} 
-                                mode={chatBoxMode}
-                                onModeChange={(m) => {
-                                    setChatBoxMode(m);
-                                    if (m === 'note') {
-                                        setIsNotesFilterActive(true);
-                                        setCurrentIndex(0);
-                                        setSearchQuery('');
-                                        setFilterPerson('');
-                                    } else {
-                                        setIsNotesFilterActive(false);
-                                    }
-                                }}
                                 onInputActive={setIsChatInputActive}
                                 onMessageUpdate={setChatMessages}
                             />
@@ -668,23 +662,19 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
               <button onClick={() => setCurrentIndex(p => (p - 1 + filteredMemories.length) % filteredMemories.length)} className={`absolute left-8 top-1/2 -translate-y-1/2 p-6 text-gray-300 dark:text-white/10 hover:text-gray-900 dark:hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronLeft className="w-16 h-16 stroke-[0.5]" /></button>
               <button onClick={() => setCurrentIndex(p => (p + 1) % filteredMemories.length)} className={`absolute right-8 top-1/2 -translate-y-1/2 p-6 text-gray-300 dark:text-white/10 hover:text-gray-900 dark:hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronRight className="w-16 h-16 stroke-[0.5]" /></button>
 
-              {/* BOTTOM LEFT: Unified Menu Bar */}
+              {/* BOTTOM LEFT: Refined Circular Menu */}
               <AnimatePresence>
                 {showUi && (
                     <motion.div 
-                        initial={{ opacity: 0, x: -50 }}
+                        initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -50 }}
-                        className="fixed bottom-8 left-8 z-50 flex items-center gap-4 px-8 py-3 bg-white/90 dark:bg-black/80 backdrop-blur-3xl border border-gray-200 dark:border-white/10 rounded-sm shadow-2xl pointer-events-auto"
+                        exit={{ opacity: 0, x: -20 }}
+                        className="fixed bottom-10 left-10 z-50 flex items-center gap-3 p-2 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full shadow-2xl pointer-events-auto"
                     >
-                        <MenuButton onClick={() => navigate(`${slugPrefix}/upload`)} icon={Upload} label="Upload" />
-                        <MenuButton onClick={() => navigate(`${slugPrefix}/messages`)} icon={MessageCircle} label="DM" />
-                        <MenuButton onClick={() => navigate(`${slugPrefix}/documents`)} icon={Database} label="Cabinet" />
                         <MenuButton onClick={cycleGridMode} icon={viewMode === 'theatre' ? Grid : Maximize2} label="Grid" active={viewMode !== 'theatre'} />
-                        <MenuButton onClick={() => navigate(`${slugPrefix}/biography`)} icon={User} label="Biography" />
-                        <MenuButton onClick={() => navigate(`${slugPrefix}/export`)} icon={Download} label="Export" />
+                        <MenuButton onClick={() => navigate(`${slugPrefix}/documents`)} icon={Database} label="Cabinet" />
                         
-                        <div className="w-px h-10 bg-gray-200 dark:bg-white/10 mx-2" />
+                        <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1" />
                         
                         <MenuButton onClick={() => setIsShuffleGallery(!isShuffleGallery)} icon={Shuffle} label="Shuffle" active={isShuffleGallery} />
                         <MenuButton onClick={toggleTheme} icon={theme === 'light' ? Moon : Sun} label="Theme" />

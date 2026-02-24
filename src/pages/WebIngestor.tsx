@@ -106,8 +106,8 @@ export default function WebIngestor({ tree, currentFamily }: WebIngestorProps) {
           <ArrowLeft className="w-6 h-6 text-gray-400 group-hover:text-black dark:group-hover:text-white transition-colors" />
         </button>
         <div className="text-center flex flex-col items-center">
-          <span className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.6em] mb-2 italic animate-pulse">Family Archival Protocol</span>
-          <h1 className="text-3xl font-serif font-black tracking-tighter uppercase italic">{currentFamily.name.split(' ')[1]} Upload</h1>
+          <span className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.6em] mb-2 italic animate-pulse">Sovereign Archival Protocol</span>
+          <h1 className="text-3xl font-serif font-black tracking-tighter uppercase italic">Murray Upload</h1>
         </div>
         <div className="w-16"></div>
       </header>

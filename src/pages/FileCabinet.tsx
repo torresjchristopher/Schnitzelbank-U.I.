@@ -160,7 +160,6 @@ export default function FileCabinet({ tree, overrides, setOverrides, isSyncing, 
   const [annotationMode, setAnnotationMode] = useState<'off' | 'text' | 'cursive'>('off');
   const [artifactMessages, setArtifactMessages] = useState<ChatMessage[]>([]);
   const [showDescription, setShowDescription] = useState(true);
-  const [chatBoxMode, setChatBoxMode] = useState<'dm' | 'note'>('dm');
   
   // Stable fallback year for purity
   const currentYear = useMemo(() => new Date().getUTCFullYear(), []);
@@ -397,8 +396,6 @@ export default function FileCabinet({ tree, overrides, setOverrides, isSyncing, 
                             people={tree.people} 
                             attachedArtifact={{ id: currentMemory.id, name: currentMemory.name }} 
                             onSelectArtifact={handleSelectArtifactFromChat} 
-                            mode={chatBoxMode}
-                            onModeChange={setChatBoxMode}
                         />
                     </div>
                     <div className="pointer-events-auto bg-black/40 backdrop-blur-md border border-white/10 px-6 py-4 rounded-sm hover:bg-black/60 transition-colors">

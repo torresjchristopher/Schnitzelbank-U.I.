@@ -160,7 +160,7 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
   };
 
   const getChatName = (chat: any) => {
-    if (chat.participants?.includes('GLOBAL_BROADCAST')) return 'Family Archive (Global)';
+    if (chat.participants?.includes('GLOBAL_BROADCAST')) return 'Murray Archive (Global)';
     
     const myId = currentUser.id.toLowerCase();
     
