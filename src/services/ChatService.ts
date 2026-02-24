@@ -26,11 +26,17 @@ export interface ChatMessage {
 export interface ChatSession {
   id: string;
   participants: string[];
+  familySlug?: string;
   lastMessage?: string;
   lastSenderName?: string;
   lastSenderPersonId?: string;
   updatedAt: any;
 }
+
+// VERSIONED COLLECTIONS: Moving to _v4 to wipe legacy malformed data
+const COLL_CHATS = 'chats_v4';
+const COLL_NOTES_INDEX = 'notes_index_v4';
+const COLL_NOTES_SUB = 'notes_v4';
 
 export class ChatService {
   private static instance: ChatService;
@@ -42,19 +48,41 @@ export class ChatService {
     return ChatService.instance;
   }
 
+  private getSafeSlug(slug?: string): string {
+    return (slug && slug.trim() !== '') ? slug : 'MURRAY_LEGACY_2026';
+  }
+
   public normalizeParticipantIds(participantIds: string[]): string[] {
     return Array.from(new Set(participantIds.filter(Boolean).map(id => id.toLowerCase()))).sort();
   }
 
   async sendMessage(participantIds: string[], currentFamilySlug: string, senderName: string, text: string, artifact?: { id: string, name: string }, senderPersonId?: string) {
-    const normalizedParticipants = this.normalizeParticipantIds(participantIds);
+    const safeSlug = this.getSafeSlug(currentFamilySlug);
+    
+    // 1. DMs and Group Chats ONLY use human IDs
+    const humanParticipants = participantIds.filter(id => 
+        id !== currentFamilySlug && 
+        id !== safeSlug && 
+        id !== 'MURRAY_LEGACY' &&
+        id !== 'GLOBAL_BROADCAST'
+    );
+    
+    const normalizedParticipants = this.normalizeParticipantIds(humanParticipants);
+    
+    if (normalizedParticipants.length === 0 && senderPersonId) {
+        normalizedParticipants.push(senderPersonId.toLowerCase());
+    }
+
     const chatId = normalizedParticipants.join('--');
-    const chatRef = doc(db, 'chats', chatId);
-    const messagesRef = collection(db, 'chats', chatId, 'messages');
+    const chatRef = doc(db, COLL_CHATS, chatId);
+    const messagesRef = collection(db, COLL_CHATS, chatId, 'messages');
+
+    console.log(`[CHAT V4] Sending to: ${chatId}`);
 
     // Update Chat Session Metadata
     await setDoc(chatRef, {
       participants: normalizedParticipants,
+      familySlug: safeSlug,
       updatedAt: serverTimestamp(),
       lastMessage: text,
       lastSenderName: senderName,
@@ -62,30 +90,31 @@ export class ChatService {
     }, { merge: true });
 
     // Add Message
-    await addDoc(messagesRef, {
-      senderId: currentFamilySlug,
+    const messageData = {
+      senderId: safeSlug,
       senderName,
       senderPersonId: senderPersonId || null,
       text,
       artifactId: artifact?.id || null,
       artifactName: artifact?.name || null,
       timestamp: serverTimestamp()
-    });
+    };
+    
+    await addDoc(messagesRef, messageData);
 
-    // FLAT INDEX UPDATE: Critical for reliable Note Mode filtering without collectionGroup
+    // FLAT INDEX UPDATE
     if (artifact) {
         try {
-            const safeSlug = currentFamilySlug || 'MURRAY_LEGACY';
-
             // 1. Maintain the "artifact updated" index
-            await setDoc(doc(db, 'notes_index', `${safeSlug}--${artifact.id}`), {
-                familySlug: currentFamilySlug,
+            await setDoc(doc(db, COLL_NOTES_INDEX, `${safeSlug}--${artifact.id}`), {
+                familySlug: safeSlug,
                 artifactId: artifact.id,
                 updatedAt: serverTimestamp()
             }, { merge: true });
 
-            // 2. Add to dedicated family_notes collection for efficient "Repeat Artifact" mode
-            await addDoc(collection(db, 'families', safeSlug, 'notes'), {
+            // 2. Add to dedicated family_notes collection
+            const noteId = `${artifact.id}--${Date.now()}`;
+            await setDoc(doc(db, 'families', safeSlug, COLL_NOTES_SUB, noteId), {
                 artifactId: artifact.id,
                 text,
                 senderName,
@@ -93,15 +122,16 @@ export class ChatService {
                 timestamp: serverTimestamp(),
                 artifactName: artifact.name || null
             });
+            console.log(`[NOTE V4] Archived: ${noteId}`);
         } catch (e) {
-            console.error("Flat index update failed:", e);
+            console.error("[NOTE V4] Archival Error:", e);
         }
     }
   }
 
   subscribeToMessages(chatId: string, onUpdate: (messages: ChatMessage[]) => void) {
     const q = query(
-      collection(db, 'chats', chatId, 'messages'),
+      collection(db, COLL_CHATS, chatId, 'messages'),
       orderBy('timestamp', 'asc')
     );
 
@@ -112,7 +142,7 @@ export class ChatService {
       })) as ChatMessage[];
       onUpdate(messages);
     }, (error) => {
-        console.error(`Message subscription failed for chat ${chatId}:`, error);
+        console.error(`[CHAT V4] Msg Sub Error (${chatId}):`, error);
     });
   }
 
@@ -133,30 +163,10 @@ export class ChatService {
     return results;
   }
 
-  async getFamilyPeople(familySlug: string): Promise<{id: string, name: string}[]> {
-    try {
-      const familyDoc = await getDocs(query(collection(db, 'families'), where('slug', '==', familySlug)));
-      if (familyDoc.empty) return [];
-      
-      const protocolKey = familyDoc.docs[0].data().protocolKey;
-      const peopleSnap = await getDocs(collection(db, 'trees', protocolKey, 'people'));
-      
-      return peopleSnap.docs
-        .filter(doc => doc.id !== 'FAMILY_ROOT')
-        .map(doc => ({
-          id: doc.id,
-          name: doc.data().name
-        }));
-    } catch (e) {
-      console.error("Failed to fetch family people", e);
-      return [];
-    }
-  }
-
   subscribeToArtifactMessages(artifactId: string, onUpdate: (messages: ChatMessage[]) => void, familySlug?: string) {
-    const safeSlug = familySlug || 'MURRAY_LEGACY';
+    const safeSlug = this.getSafeSlug(familySlug);
     const q = query(
-      collection(db, 'families', safeSlug, 'notes'),
+      collection(db, 'families', safeSlug, COLL_NOTES_SUB),
       where('artifactId', '==', artifactId)
     );
 
@@ -174,59 +184,39 @@ export class ChatService {
       
       onUpdate(messages);
     }, (error) => {
-        console.error(`Artifact note sub failed for ${artifactId} in ${safeSlug}:`, error);
-        // Fallback to empty list instead of crashing/spamming permissions
+        console.error(`[NOTE V4] Artifact Sub Error (${artifactId}):`, error);
         onUpdate([]);
     });
   }
 
   subscribeToAllChats(participantId: string, onUpdate: (chats: ChatSession[]) => void) {
     const normId = participantId.toLowerCase();
-    
-    // Query both original (mixed-case) and normalized (lowercase) to ensure history isn't lost
-    const q1 = query(
-      collection(db, 'chats'),
-      where('participants', 'array-contains', participantId)
-    );
-    
-    const q2 = query(
-      collection(db, 'chats'),
+    const q = query(
+      collection(db, COLL_CHATS),
       where('participants', 'array-contains', normId)
     );
 
-    let chats1: ChatSession[] = [];
-    let chats2: ChatSession[] = [];
-
-    const handleUpdate = () => {
-        const combined = [...chats1, ...chats2];
-        const unique = Array.from(new Map(combined.map(c => [c.id, c])).values());
-        unique.sort((a, b) => {
-            const timeA = a.updatedAt?.seconds || 0;
-            const timeB = b.updatedAt?.seconds || 0;
-            return timeB - timeA;
-        });
-        onUpdate(unique);
-    };
-
-    const unsub1 = onSnapshot(q1, (snap) => {
-        chats1 = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatSession));
-        handleUpdate();
+    return onSnapshot(q, (snapshot) => {
+      const chats = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as ChatSession[];
+      
+      chats.sort((a, b) => {
+          const timeA = a.updatedAt?.seconds || 0;
+          const timeB = b.updatedAt?.seconds || 0;
+          return timeB - timeA;
+      });
+      
+      onUpdate(chats);
+    }, (error) => {
+        console.error("[CHAT V4] All Chats Sub Error:", error);
     });
-
-    const unsub2 = onSnapshot(q2, (snap) => {
-        chats2 = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatSession));
-        handleUpdate();
-    });
-
-    return () => {
-        unsub1();
-        unsub2();
-    };
   }
 
   subscribeToGlobalBroadcasts(onUpdate: (chats: ChatSession[]) => void) {
     const q = query(
-      collection(db, 'chats'),
+      collection(db, COLL_CHATS),
       where('participants', 'array-contains', 'GLOBAL_BROADCAST')
     );
 
@@ -237,15 +227,16 @@ export class ChatService {
       })) as ChatSession[];
       onUpdate(chats);
     }, (error) => {
-        console.error("Global broadcast sub failed", error);
+        console.error("[CHAT V4] Global Sub Error:", error);
     });
   }
 
   async getNotedArtifactIds(familySlug: string): Promise<string[]> {
     try {
+        const safeSlug = this.getSafeSlug(familySlug);
         const q = query(
-            collection(db, 'notes_index'), 
-            where('familySlug', '==', familySlug)
+            collection(db, COLL_NOTES_INDEX), 
+            where('familySlug', '==', safeSlug)
         );
         const snap = await getDocs(q);
         const ids = new Set<string>();
@@ -255,15 +246,15 @@ export class ChatService {
         });
         return Array.from(ids);
     } catch (e) {
-        console.error("Failed to fetch noted artifact IDs via flat index. Error:", e);
+        console.error("[NOTE V4] Index Fetch Error:", e);
         return [];
     }
   }
 
   async getAllNotesForFamily(familySlug: string): Promise<ChatMessage[]> {
     try {
-        const safeSlug = familySlug || 'MURRAY_LEGACY';
-        const q = query(collection(db, 'families', safeSlug, 'notes'));
+        const safeSlug = this.getSafeSlug(familySlug);
+        const q = query(collection(db, 'families', safeSlug, COLL_NOTES_SUB));
         const snap = await getDocs(q);
         
         const messages = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage));
@@ -276,8 +267,31 @@ export class ChatService {
         
         return messages;
     } catch (e) {
-        console.error("Failed to fetch all notes for family:", e);
+        console.error("[NOTE V4] Family Fetch Error:", e);
         return [];
     }
+  }
+
+  subscribeToAllNotesForFamily(familySlug: string, onUpdate: (notes: ChatMessage[]) => void) {
+    const safeSlug = this.getSafeSlug(familySlug);
+    const q = query(collection(db, 'families', safeSlug, COLL_NOTES_SUB));
+
+    return onSnapshot(q, (snapshot) => {
+      const messages = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as ChatMessage[];
+      
+      messages.sort((a, b) => {
+          const tA = a.timestamp?.seconds || 0;
+          const tB = b.timestamp?.seconds || 0;
+          return tB - tA; // Newest first
+      });
+      
+      onUpdate(messages);
+    }, (error) => {
+        console.error(`[NOTE V4] Family Sub Error (${safeSlug}):`, error);
+        onUpdate([]);
+    });
   }
 }

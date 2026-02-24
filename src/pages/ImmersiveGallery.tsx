@@ -1,177 +1,22 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Lock, Database, Sun, Moon, Play, Pause, CheckSquare, Square, Volume2, VolumeX, Users, X, Terminal, AlignLeft, BookOpen, MessageCircle, StickyNote, Shuffle, Star, Paperclip } from 'lucide-react';
+import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Lock, Database, Sun, Moon, CheckSquare, Square, AlignLeft, MessageCircle, StickyNote, Shuffle, Star, User, Upload, RotateCw, Trash2, FilePlus, Loader2, X, Play, Users } from 'lucide-react';
 import type { MemoryTree, Memory, Person } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PersistenceService } from '../services/PersistenceService';
-import { ref, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../App';
 import JSZip from 'jszip';
 import { ChatBox } from '../components/ChatBox';
 import { ChatService } from '../services/ChatService';
 import type { ChatMessage } from '../services/ChatService';
-
-// --- VIDEO PLAYER COMPONENT ---
-const CustomVideoPlayer = ({ src, autoPlay, onEnded, className }: { src: string, autoPlay?: boolean, onEnded?: () => void, className?: string }) => {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [isPlaying, setIsPlaying] = useState(autoPlay);
-    const [progress, setProgress] = useState(0);
-    const [isMuted, setIsMuted] = useState(false);
-    const [showControls, setShowControls] = useState(false);
-    const [resolvedSrc, setResolvedSrc] = useState(src);
-
-    useEffect(() => {
-        let mounted = true;
-        const resolve = async () => {
-            if (src.includes('storage.googleapis.com')) {
-                const match = src.match(/artifacts\/.+/);
-                if (match) {
-                    try {
-                        const url = await getDownloadURL(ref(storage, match[0]));
-                        if (mounted) setResolvedSrc(url);
-                    } catch (e) { console.error("Video resolve failed", e); }
-                }
-            }
-        };
-        resolve();
-        return () => { mounted = false; };
-    }, [src]);
-
-    const togglePlay = (e?: React.MouseEvent) => {
-        e?.stopPropagation();
-        if (videoRef.current) {
-            if (isPlaying) videoRef.current.pause();
-            else videoRef.current.play();
-            setIsPlaying(!isPlaying);
-        }
-    };
-
-    const toggleMute = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (videoRef.current) {
-            videoRef.current.muted = !videoRef.current.muted;
-            setIsMuted(videoRef.current.muted);
-        }
-    };
-
-    useEffect(() => {
-        const handleSpace = (e: KeyboardEvent) => {
-            if (e.code === 'Space') {
-                e.preventDefault();
-                togglePlay();
-            }
-        };
-        window.addEventListener('keydown', handleSpace);
-        return () => window.removeEventListener('keydown', handleSpace);
-    }, [isPlaying]);
-
-    const handleTimeUpdate = () => {
-        if (videoRef.current) {
-            const p = (videoRef.current.currentTime / videoRef.current.duration) * 100;
-            setProgress(p);
-        }
-    };
-
-    const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-        e.stopPropagation();
-        if (videoRef.current) {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const pos = (e.clientX - rect.left) / rect.width;
-            videoRef.current.currentTime = pos * videoRef.current.duration;
-            setProgress(pos * 100);
-        }
-    };
-
-    return (
-        <div className={`relative group ${className}`} onMouseEnter={() => setShowControls(true)} onMouseLeave={() => setShowControls(false)} onClick={() => togglePlay()}>
-            <video ref={videoRef} src={resolvedSrc} className="w-full h-full object-contain bg-black" autoPlay={autoPlay} onEnded={() => { setIsPlaying(false); onEnded && onEnded(); }} onTimeUpdate={handleTimeUpdate} />
-            <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${!isPlaying || showControls ? 'opacity-100' : 'opacity-0'}`}>
-                <div className="bg-black/40 backdrop-blur-sm p-4 rounded-full border border-white/10">
-                    {isPlaying ? <Pause className="w-8 h-8 text-white" fill="white" /> : <Play className="w-8 h-8 text-white ml-1" fill="white" />}
-                </div>
-            </div>
-            <div className="absolute bottom-4 left-4 right-4 flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
-                <div className="flex-1 h-8 flex items-center cursor-pointer group/bar relative" onMouseDown={handleSeek}>
-                    <div className="absolute inset-0 flex items-center"><div className="w-full h-1 bg-white/30 rounded-full overflow-hidden group-hover/bar:h-1.5 transition-all"><div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" style={{ width: `${progress}%` }} /></div></div>
-                </div>
-                <button onClick={toggleMute} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white flex-shrink-0">{isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}</button>
-            </div>
-        </div>
-    );
-};
-
-// --- IMAGE COMPONENT ---
-const ResolvedImage = ({ src, alt, className }: { src: string, alt?: string, className?: string }) => {
-  const [resolvedSrc, setResolvedSrc] = useState(src);
-  useEffect(() => {
-    let mounted = true;
-    const resolve = async () => {
-      if (src.includes('storage.googleapis.com')) {
-        const match = src.match(/artifacts\/.+/);
-        if (match) {
-          try {
-            const url = await getDownloadURL(ref(storage, match[0]));
-            if (mounted) setResolvedSrc(url);
-          } catch (e) {}
-        }
-      }
-    };
-    resolve();
-    return () => { mounted = false; };
-  }, [src]);
-  return <img src={resolvedSrc} alt={alt} className={className} />;
-};
-
-// --- TYPEWRITER COMPONENT ---
-const Typewriter = ({ text, speed = 30 }: { text: string, speed?: number }) => {
-    const [displayedText, setDisplayedText] = useState('');
-    useEffect(() => {
-        let i = 0;
-        setDisplayedText('');
-        const timer = setInterval(() => {
-            setDisplayedText(text.substring(0, i + 1));
-            i++;
-            if (i >= text.length) clearInterval(timer);
-        }, speed);
-        return () => clearInterval(timer);
-    }, [text, speed]);
-    return <span>{displayedText}</span>;
-};
-
-// --- MESSAGE STREAM COMPONENT ---
-const MessageStream = ({ messages, currentUser, onSelectArtifact }: { messages: ChatMessage[], currentUser: Person, onSelectArtifact?: (id: string) => void }) => {
-    const streamRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        streamRef.current?.scrollTo({ top: streamRef.current.scrollHeight, behavior: 'smooth' });
-    }, [messages]);
-
-    return (
-        <div ref={streamRef} className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto no-scrollbar py-10">
-            {messages.length > 0 && messages.map((m, i) => (
-                <div key={i} className={`flex flex-col ${m.senderPersonId === currentUser.id ? 'items-end' : 'items-start'}`}>
-                    <div className="text-[6px] font-black text-black opacity-40 uppercase tracking-[0.2em] mb-1 px-1">{m.senderName}</div>
-                    <div className={`w-fit max-w-[90%] p-2.5 rounded-sm text-[10px] leading-snug font-black transition-colors ${
-                        m.senderPersonId === currentUser.id 
-                        ? 'bg-emerald-500 text-black shadow-sm' 
-                        : 'bg-white border border-black/10 text-black shadow-sm'
-                    }`}>
-                        {m.text}
-                        {m.artifactId && (
-                            <div 
-                                className="mt-2 p-1.5 bg-black/5 rounded-sm flex items-center gap-2 cursor-pointer hover:bg-black/10 transition-all border border-black/5"
-                                onClick={() => onSelectArtifact?.(m.artifactId!)}
-                            >
-                                <Paperclip className="w-2.5 h-2.5 text-black/40" />
-                                <span className="text-[7px] font-black uppercase tracking-widest text-black/60">LINKED: {m.artifactName || 'MEM'}</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-};
+import { 
+    CustomVideoPlayer, 
+    ResolvedImage, 
+    Typewriter, 
+    MessageStream, 
+    MenuButton 
+} from '../components/GalleryComponents';
+import { PdfService, type PdfItem } from '../services/PdfService';
 
 interface ImmersiveGalleryProps {
   tree: MemoryTree;
@@ -208,13 +53,18 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
     const saved = localStorage.getItem(`schnitzel_order_${currentFamily.slug || 'global'}`);
     return saved ? JSON.parse(saved) : [];
   });
+  const [isPdfCreatorOpen, setIsPdfCreatorOpen] = useState(false);
+  const [pdfItems, setPdfItems] = useState<{ id: string, url: string, name: string, rotation: number }[]>([]);
+  const [isCreatingPdf, setIsCreatingPdf] = useState(false);
 
-  const [isNotesFilterActive, setIsNotesFilterActive] = useState(false);
-  const [notedPairs, setNotedPairs] = useState<{memory: Memory, note: ChatMessage}[]>([]);
+  // Stable fallback year for purity
+  const currentYear = useMemo(() => new Date().getUTCFullYear(), []);
+
+  const [isNotesFilterActive, setIsNotesFilterActive] = useState(false);  const [notedPairs, setNotedPairs] = useState<{memory: Memory, note: ChatMessage}[]>([]);
 
   useEffect(() => {
     if (isNotesFilterActive) {
-        ChatService.getInstance().getAllNotesForFamily(currentFamily.slug).then(notes => {
+        const unsub = ChatService.getInstance().subscribeToAllNotesForFamily(currentFamily.slug, (notes) => {
             const pairs: {memory: Memory, note: ChatMessage}[] = [];
             notes.forEach(note => {
                 const mem = tree.memories.find(m => m.id === note.artifactId);
@@ -230,8 +80,10 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                 }
             });
             setNotedPairs(pairs);
-            setCurrentIndex(0);
+            // We don't force setCurrentIndex(0) here so that if a user is looking at a note and a new one arrives,
+            // they aren't yanked back to the start.
         });
+        return unsub;
     } else {
         setNotedPairs([]);
     }
@@ -319,7 +171,16 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
     if (!isNotesFilterActive || filteredMemories.length <= 1 || isChatInputActive) return;
     
     const interval = setInterval(() => {
-        setCurrentIndex(prev => (prev + 1) % filteredMemories.length);
+        setCurrentIndex(prev => {
+            const next = (prev + 1) % filteredMemories.length;
+            // If we wrap back to the beginning, it means we've seen all notes in the stack
+            if (next === 0) {
+                console.log("[NOTES V4] Stack expired, exiting Note Mode.");
+                setIsNotesFilterActive(false);
+                setChatBoxMode('dm');
+            }
+            return next;
+        });
     }, 12000); // 12 seconds per note
     
     return () => clearInterval(interval);
@@ -550,6 +411,39 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
     }
   };
 
+  const handleOpenPdfCreator = () => {
+    const selectedMemories = localMemories.filter(m => selectedIds.has(m.id));
+    const items = selectedMemories
+        .filter(m => m.type === 'image' || !m.type || m.name.match(/\.(jpg|jpeg|png|webp)$/i))
+        .map(m => ({
+            id: m.id,
+            url: m.photoUrl || m.url || '',
+            name: m.name,
+            rotation: 0
+        }));
+    setPdfItems(items);
+    setIsPdfCreatorOpen(true);
+  };
+
+  const generatePdf = async (pdfTitle: string) => {
+    if (pdfItems.length === 0) return;
+    setIsCreatingPdf(true);
+    try {
+        await PdfService.generateArchiveBundle(
+            pdfItems as PdfItem[], 
+            pdfTitle, 
+            currentUser, 
+            currentFamily.protocolKey || 'MURRAY_LEGACY_2026'
+        );
+        setIsPdfCreatorOpen(false);
+        setSelectedIds(new Set());
+    } catch (e) {
+        console.error("PDF generation failed", e);
+    } finally {
+        setIsCreatingPdf(false);
+    }
+  };
+
   const slugPrefix = currentFamily.slug ? `/${currentFamily.slug}` : '';
 
   return (
@@ -563,9 +457,27 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
         >
           {/* LEFT: Branding Area */}
           <div className="pointer-events-auto flex flex-col items-start gap-0">
-            <h1 className="text-lg font-serif font-bold text-gray-900 dark:text-white tracking-tighter uppercase italic leading-tight">Schnitzelbank</h1>
+            <div className="flex items-center gap-3">
+                <h1 className="text-lg font-serif font-bold text-gray-900 dark:text-white tracking-tighter uppercase italic leading-tight">Schnitzelbank</h1>
+                <div className="flex items-center gap-1">
+                    <button 
+                        onClick={() => { localStorage.removeItem('schnitzel_session'); localStorage.removeItem('schnitzel_identity'); window.location.reload(); }} 
+                        className="p-1.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-all" 
+                        title="Lock Archive"
+                    >
+                        <Lock className="w-3 h-3 text-gray-400 dark:text-white/20" />
+                    </button>
+                    <button 
+                        onClick={() => setIsGlobalView(!isGlobalView)} 
+                        className={`p-1.5 rounded-full transition-all ${isGlobalView ? 'bg-emerald-500/20 text-emerald-500' : 'hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 dark:text-white/20'}`} 
+                        title="Toggle Global/Family View"
+                    >
+                        <Users className="w-3 h-3" />
+                    </button>
+                </div>
+            </div>
             <span className="text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.4em] leading-tight mb-1">
-                {isGlobalView ? "Murray Global Archive" : currentFamily.name}
+                {isGlobalView ? "Global Family Archive" : currentFamily.name}
             </span>
             <div className="flex items-center gap-2 opacity-60">
                 <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
@@ -584,36 +496,12 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
             </select>
           </div>
 
-          {/* RIGHT: Menu Grid (4 Columns) */}
-          <div className="pointer-events-auto grid grid-cols-4 gap-2 p-2">
-              <button onClick={() => { localStorage.removeItem('schnitzel_session'); localStorage.removeItem('schnitzel_identity'); window.location.reload(); }} className="p-3.5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10" title="Lock Archive"><Lock className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
-              <button onClick={() => navigate(`${slugPrefix}/messages`)} className="p-3.5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10" title="Messages"><MessageCircle className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
-              <button onClick={() => navigate(`${slugPrefix}/documents`)} className="p-3.5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10" title="File Cabinet"><Database className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
-              <button onClick={() => navigate(`${slugPrefix}/ingest`)} className="p-3.5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10" title="Upload"><Terminal className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
-              
-              <button onClick={cycleGridMode} className="p-3.5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10" title="Grid View">
-                {viewMode === 'theatre' ? <Grid className="w-4 h-4 text-gray-500 dark:text-white/40" /> : <Maximize2 className="w-4 h-4 text-gray-500 dark:text-white/40" />}
-              </button>
-              <button onClick={() => navigate(`${slugPrefix}/biography`)} className="p-3.5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10" title="Biographies"><BookOpen className="w-4 h-4 text-gray-500 dark:text-white/40" /></button>
-              <button onClick={() => navigate(`${slugPrefix}/export`)} className="p-3.5 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-2xl hover:opacity-80 transition-all" title="Export"><Download className="w-4 h-4" /></button>
-              <button onClick={() => setIsGlobalView(!isGlobalView)} className={`p-3.5 rounded-full transition-all ${isGlobalView ? 'bg-emerald-500/20 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Global/Family View"><Users className="w-4 h-4" /></button>
-              
-              <button onClick={toggleTheme} className="p-3.5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10" title="Theme">
-                {theme === 'light' ? <Moon className="w-4 h-4 text-gray-500" /> : <Sun className="w-4 h-4 text-white/40" />}
-              </button>
-              <button onClick={() => setShowDescription(!showDescription)} className={`p-3.5 rounded-full transition-all ${showDescription ? 'bg-emerald-500/20 text-emerald-500' : 'text-gray-500 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10'}`} title="Toggle Description"><AlignLeft className="w-4 h-4" /></button>
-              <button onClick={() => { 
-                  const newState = !isNotesFilterActive;
-                  setIsNotesFilterActive(newState); 
-                  setCurrentIndex(0); 
-                  // RESET TRAP: Clear all other filters so the Note gallery isn't filtered to zero
-                  if (newState) {
-                      setSearchQuery('');
-                      setFilterPerson('');
-                  }
-                  console.log(`[NOTES V4] Toggle: ${newState}. Filters Cleared.`);
-              }} className={`p-3.5 rounded-full transition-all ${isNotesFilterActive ? 'bg-emerald-500/20 text-emerald-500' : 'text-gray-500 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10'}`} title="Note Filter Mode"><StickyNote className="w-4 h-4" /></button>
-              <button onClick={() => setIsShuffleGallery(!isShuffleGallery)} className={`p-3.5 rounded-full transition-all ${isShuffleGallery ? 'bg-emerald-500/20 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/40'}`} title="Toggle Shuffle Progression"><Shuffle className="w-4 h-4" /></button>
+          {/* RIGHT: Status Area */}
+          <div className="pointer-events-auto flex items-center gap-4 p-2">
+              <div className="flex flex-col items-end">
+                  <span className="text-[7px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.3em]">System Protocol</span>
+                  <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest italic">Encrypted</span>
+              </div>
           </div>
         </motion.header>
 
@@ -625,6 +513,10 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                     <div className="h-4 w-px bg-gray-200 dark:bg-white/10" />
                     <button onClick={downloadSelected} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:text-emerald-500 transition-colors">
                         <Download className="w-3 h-3" /> Download
+                    </button>
+                    <div className="h-4 w-px bg-gray-200 dark:bg-white/10" />
+                    <button onClick={handleOpenPdfCreator} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:text-emerald-500 transition-colors">
+                        <FilePlus className="w-3 h-3" /> Create PDF
                     </button>
                     <div className="h-4 w-px bg-gray-200 dark:bg-white/10" />
                     <div className="flex items-center gap-2">
@@ -657,7 +549,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                     {isGlobalView ? "Global archive matched no protocol." : "This family bank is empty. Start your protocol."}
                   </p>
                   <div className="flex flex-col gap-4 items-center">
-                    {!isGlobalView && <button onClick={() => navigate(`${slugPrefix}/ingest`)} className="px-10 py-4 bg-black dark:bg-white text-white dark:text-black text-[10px] font-black uppercase hover:opacity-80 transition-all shadow-2xl">Upload Memory</button>}
+                    {!isGlobalView && <button onClick={() => navigate(`${slugPrefix}/upload`)} className="px-10 py-4 bg-black dark:bg-white text-white dark:text-black text-[10px] font-black uppercase hover:opacity-80 transition-all shadow-2xl">Upload Memory</button>}
                     <button onClick={() => { setSearchQuery(''); setFilterPerson(''); }} className="text-[9px] font-black text-gray-400 dark:text-white/30 uppercase tracking-widest hover:text-gray-600 dark:hover:text-white/60 transition-colors">Clear Search Filters</button>
                   </div>
                 </div>
@@ -697,9 +589,9 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                                 exit={{ opacity: 0, x: -50 }}
                                 className="absolute left-10 top-1/2 -translate-y-1/2 w-[400px] pointer-events-auto bg-white/10 backdrop-blur-3xl p-10 border-l-4 border-emerald-500 shadow-2xl"
                             >
-                                <div className="flex items-center gap-3 mb-6 opacity-40">
-                                    <StickyNote className="w-4 h-4 text-emerald-500" />
-                                    <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white">Transmission Log</span>
+                                <div className="flex items-center gap-3 mb-6 opacity-60">
+                                    <StickyNote className="w-4 h-4 text-emerald-600" />
+                                    <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black">Transmission Log</span>
                                 </div>
                                 <div className="flex flex-col gap-6">
                                     <div className="flex flex-col gap-2">
@@ -707,14 +599,14 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                                             <span>{notedPairs[currentIndex].note.senderName}</span>
                                             <span>{notedPairs[currentIndex].note.timestamp ? new Date(notedPairs[currentIndex].note.timestamp.seconds * 1000).toLocaleTimeString() : 'NOW'}</span>
                                         </div>
-                                        <p className="text-2xl font-serif italic leading-relaxed text-white selection:bg-emerald-500/30">
+                                        <p className="text-2xl font-serif italic leading-relaxed text-black selection:bg-emerald-500/30">
                                             "<Typewriter text={notedPairs[currentIndex].note.text} />"
                                             <span className="w-1.5 h-5 bg-emerald-500 inline-block ml-1 animate-pulse" />
                                         </p>
                                     </div>
-                                    <div className="pt-6 border-t border-white/5">
-                                        <span className="text-[8px] font-black uppercase tracking-widest text-white/20">Linked Artifact</span>
-                                        <h3 className="text-xs font-bold uppercase tracking-widest text-white/60 mt-1">{currentMemory.name.replace(/\.[^.]+$/, '')}</h3>
+                                    <div className="pt-6 border-t border-black/10">
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-black/40">Linked Artifact</span>
+                                        <h3 className="text-xs font-bold uppercase tracking-widest text-black/60 mt-1">{currentMemory.name.replace(/\.[^.]+$/, '')}</h3>
                                     </div>
                                 </div>
                             </motion.div>
@@ -728,8 +620,8 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                         </div>
                     )}
 
-                    {/* CHAT HUD - CENTERED BOTTOM */}
-                    {viewMode === 'theatre' && (
+                    {/* CHAT HUD - CENTERED BOTTOM (Toggled by Metadata Button) */}
+                    {viewMode === 'theatre' && showDescription && (
                         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 pointer-events-auto w-full max-w-4xl px-8" onMouseEnter={() => setIsUiLocked(true)} onMouseLeave={() => setIsUiLocked(false)}>
                             <ChatBox 
                                 currentFamily={currentFamily} 
@@ -738,21 +630,31 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                                 attachedArtifact={attachedArtifact} 
                                 onSelectArtifact={handleSelectArtifactFromChat} 
                                 mode={chatBoxMode}
-                                onModeChange={setChatBoxMode}
+                                onModeChange={(m) => {
+                                    setChatBoxMode(m);
+                                    if (m === 'note') {
+                                        setIsNotesFilterActive(true);
+                                        setCurrentIndex(0);
+                                        setSearchQuery('');
+                                        setFilterPerson('');
+                                    } else {
+                                        setIsNotesFilterActive(false);
+                                    }
+                                }}
                                 onInputActive={setIsChatInputActive}
                                 onMessageUpdate={setChatMessages}
                             />
                         </div>
                     )}
 
-                    {/* METADATA CARD - BOTTOM RIGHT */}
+                    {/* METADATA CARD - BOTTOM LEFT (Above Menu) */}
                     {!isVideoPlaying && showDescription && (
-                        <div className="absolute bottom-8 right-8 pointer-events-auto bg-black/40 backdrop-blur-md border border-white/10 px-6 py-4 rounded-sm hover:bg-black/60 transition-colors text-right shadow-2xl">
+                        <div className="absolute bottom-32 left-10 pointer-events-auto bg-black/40 backdrop-blur-md border border-white/10 px-6 py-4 rounded-sm hover:bg-black/60 transition-colors text-left shadow-2xl">
                           <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1 cursor-pointer hover:text-white transition-colors" onDoubleClick={(e) => { e.stopPropagation(); startEditing(currentMemory.id, 'year', currentMemory.date); }}>
-                            {editingField?.id === currentMemory.id && editingField.field === 'year' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-white/30 text-white w-12 outline-none text-right" /> : <span>{new Date(currentMemory.date || Date.now()).getUTCFullYear()}</span>}
+                            {editingField?.id === currentMemory.id && editingField.field === 'year' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-white/30 text-white w-12 outline-none text-left" /> : <span>{new Date(currentMemory.date || currentYear).getUTCFullYear()}</span>}
                           </div>
                           <div className="text-xl font-serif italic text-white tracking-wide cursor-pointer hover:text-emerald-400 transition-colors" onDoubleClick={(e) => { e.stopPropagation(); startEditing(currentMemory.id, 'name', currentMemory.name); }}>
-                            {editingField?.id === currentMemory.id && editingField.field === 'name' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-white/30 text-white w-64 outline-none text-right" /> : <span>{currentMemory.name.replace(/\.[^.]+$/, '')}</span>}
+                            {editingField?.id === currentMemory.id && editingField.field === 'name' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-white/30 text-white w-64 outline-none text-left" /> : <span>{currentMemory.name.replace(/\.[^.]+$/, '')}</span>}
                           </div>
                         </div>
                     )}
@@ -765,6 +667,31 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
 
               <button onClick={() => setCurrentIndex(p => (p - 1 + filteredMemories.length) % filteredMemories.length)} className={`absolute left-8 top-1/2 -translate-y-1/2 p-6 text-gray-300 dark:text-white/10 hover:text-gray-900 dark:hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronLeft className="w-16 h-16 stroke-[0.5]" /></button>
               <button onClick={() => setCurrentIndex(p => (p + 1) % filteredMemories.length)} className={`absolute right-8 top-1/2 -translate-y-1/2 p-6 text-gray-300 dark:text-white/10 hover:text-gray-900 dark:hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronRight className="w-16 h-16 stroke-[0.5]" /></button>
+
+              {/* BOTTOM LEFT: Unified Menu Bar */}
+              <AnimatePresence>
+                {showUi && (
+                    <motion.div 
+                        initial={{ opacity: 0, x: -50 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -50 }}
+                        className="fixed bottom-8 left-8 z-50 flex items-center gap-4 px-8 py-3 bg-white/90 dark:bg-black/80 backdrop-blur-3xl border border-gray-200 dark:border-white/10 rounded-sm shadow-2xl pointer-events-auto"
+                    >
+                        <MenuButton onClick={() => navigate(`${slugPrefix}/upload`)} icon={Upload} label="Upload" />
+                        <MenuButton onClick={() => navigate(`${slugPrefix}/messages`)} icon={MessageCircle} label="DM" />
+                        <MenuButton onClick={() => navigate(`${slugPrefix}/documents`)} icon={Database} label="Cabinet" />
+                        <MenuButton onClick={cycleGridMode} icon={viewMode === 'theatre' ? Grid : Maximize2} label="Grid" active={viewMode !== 'theatre'} />
+                        <MenuButton onClick={() => navigate(`${slugPrefix}/biography`)} icon={User} label="Biography" />
+                        <MenuButton onClick={() => navigate(`${slugPrefix}/export`)} icon={Download} label="Export" />
+                        
+                        <div className="w-px h-10 bg-gray-200 dark:bg-white/10 mx-2" />
+                        
+                        <MenuButton onClick={() => setIsShuffleGallery(!isShuffleGallery)} icon={Shuffle} label="Shuffle" active={isShuffleGallery} />
+                        <MenuButton onClick={toggleTheme} icon={theme === 'light' ? Moon : Sun} label="Theme" />
+                        <MenuButton onClick={() => setShowDescription(!showDescription)} icon={AlignLeft} label="Info" active={showDescription} />
+                    </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           ) : (
             <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 overflow-y-auto p-10 pt-32 custom-scrollbar" onClick={() => setShowUi(false)}>
@@ -814,6 +741,106 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
               </div>
             </motion.div>
           )}
+        </AnimatePresence>
+
+        {/* PDF CREATOR OVERLAY */}
+        <AnimatePresence>
+            {isPdfCreatorOpen && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-white/95 dark:bg-black/95 backdrop-blur-3xl p-10 flex flex-col items-center overflow-hidden pointer-events-auto">
+                    <header className="w-full max-w-7xl flex justify-between items-center mb-10">
+                        <div className="flex flex-col">
+                            <h2 className="text-3xl font-serif font-black italic uppercase tracking-tighter">PDF Archival Bundle</h2>
+                            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-500">Editor Protocol Active</span>
+                        </div>
+                        <button onClick={() => setIsPdfCreatorOpen(false)} className="p-3 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-all text-gray-400"><X className="w-8 h-8" /></button>
+                    </header>
+                    
+                    <div className="flex-1 w-full max-w-7xl overflow-y-auto no-scrollbar pb-40">
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8">
+                            {pdfItems.map((item, idx) => (
+                                <motion.div layout key={item.id} className="relative aspect-[3/4] bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/10 rounded-sm overflow-hidden group shadow-xl">
+                                    <ResolvedImage src={item.url} className="w-full h-full object-contain transition-transform duration-300" style={{ transform: `rotate(${item.rotation}deg)` }} />
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-4">
+                                        <div className="flex items-center gap-2">
+                                            <button 
+                                                onClick={() => {
+                                                    const newItems = [...pdfItems];
+                                                    newItems[idx].rotation = (newItems[idx].rotation + 90) % 360;
+                                                    setPdfItems(newItems);
+                                                }}
+                                                className="p-2 bg-white text-black rounded-full hover:scale-110 transition-transform"
+                                                title="Rotate Image"
+                                            >
+                                                <RotateCw className="w-4 h-4" />
+                                            </button>
+                                            <button 
+                                                onClick={() => {
+                                                    setPdfItems(prev => prev.filter((_, i) => i !== idx));
+                                                }}
+                                                className="p-2 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"
+                                                title="Remove Image"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <button 
+                                                disabled={idx === 0} 
+                                                onClick={() => {
+                                                    const newItems = [...pdfItems];
+                                                    const temp = newItems[idx];
+                                                    newItems[idx] = newItems[idx-1];
+                                                    newItems[idx-1] = temp;
+                                                    setPdfItems(newItems);
+                                                }}
+                                                className="p-2 bg-white/20 text-white rounded-full disabled:opacity-20 hover:bg-white/40 transition-colors"
+                                                title="Move Forward"
+                                            >
+                                                <ChevronLeft className="w-4 h-4" />
+                                            </button>
+                                            <button 
+                                                disabled={idx === pdfItems.length - 1} 
+                                                onClick={() => {
+                                                    const newItems = [...pdfItems];
+                                                    const temp = newItems[idx];
+                                                    newItems[idx] = newItems[idx+1];
+                                                    newItems[idx+1] = temp;
+                                                    setPdfItems(newItems);
+                                                }}
+                                                className="p-2 bg-white/20 text-white rounded-full disabled:opacity-20 hover:bg-white/40 transition-colors"
+                                                title="Move Backward"
+                                            >
+                                                <ChevronRight className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="absolute bottom-4 left-4 px-3 py-1 bg-emerald-500 rounded-sm text-[10px] font-black text-white shadow-lg">{idx + 1}</div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="fixed bottom-12 left-1/2 -translate-x-1/2 w-full max-w-2xl bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-white/10 p-8 rounded-sm shadow-[0_50px_100px_rgba(0,0,0,0.6)] flex items-center gap-8 z-[110]">
+                        <input 
+                            id="pdf-title-input"
+                            type="text" 
+                            placeholder="NAME THE ARCHIVE..." 
+                            className="flex-1 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/5 px-8 py-5 text-[11px] font-black uppercase tracking-[0.3em] focus:ring-0 focus:border-emerald-500 transition-all text-gray-900 dark:text-white"
+                        />
+                        <button 
+                            disabled={isCreatingPdf || pdfItems.length === 0}
+                            onClick={() => {
+                                const title = (document.getElementById('pdf-title-input') as HTMLInputElement).value;
+                                generatePdf(title);
+                            }}
+                            className="px-12 py-5 bg-emerald-500 text-white text-[11px] font-black uppercase tracking-[0.5em] hover:bg-emerald-400 transition-all disabled:opacity-20 flex items-center gap-4 shadow-xl active:scale-95"
+                        >
+                            {isCreatingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FilePlus className="w-4 h-4" />}
+                            {isCreatingPdf ? 'COMPILING...' : 'COMMIT PDF'}
+                        </button>
+                    </div>
+                </motion.div>
+            )}
         </AnimatePresence>
       </div>
     </div>

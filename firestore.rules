@@ -1,38 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // 1. Family Configuration
-    match /families/{slug} {
-      allow read, write: if true;
-
-      match /notes/{noteId} {
-        allow read, write: if true;
-      }
-    }
-        // 2. Memory Tree Data (Read/Write for App)
-    match /trees/{treeId}/{document=**} {
+    // 🏛️ PROTOTYPE MODE: FULL PERMISSIVE ACCESS
+    // This allows the app to perform collection queries and subcollection access 
+    // without complex rule matching during development.
+    match /{document=**} {
       allow read, write: if true;
     }
-
-    // 3. Messaging & Chats (Participants Only)
-    match /chats/{chatId}/{document=**} {
-      allow read, write: if true; 
-    }
-
-    // 4. Notes Index (App Read/Write)
-    match /notes_index/{id} {
-      allow read, write: if true;
-    }
-
-    // 5. Collection Group for Artifact Notes (App Read/Write)
-            match /{path=**}/messages/{messageId} {
-              allow read, write: if true;
-            }
-    
-            match /{path=**}/notes/{noteId} {
-              allow read, write: if true;
-            }
-          }
-        }
-    
+  }
+}

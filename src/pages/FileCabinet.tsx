@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Sun, Moon, CheckSquare, Square, FileText, File as FileIcon, FileType, Loader2, Users, PenTool, Type, X, Terminal, AlignLeft } from 'lucide-react';
+import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Sun, Moon, CheckSquare, Square, FileText, File as FileIcon, FileType, Loader2, Users, PenTool, Type, X, AlignLeft, Upload } from 'lucide-react';
 import type { MemoryTree, Memory, Person } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -11,7 +11,7 @@ import { ChatService } from '../services/ChatService';
 import type { ChatMessage } from '../services/ChatService';
 import { AnnotationStream } from '../components/AnnotationStream';
 
-// --- PDF.JS HELPERS ---
+// ... (keep PDF.JS constants)
 const PDF_JS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 const PDF_WORKER_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -162,6 +162,9 @@ export default function FileCabinet({ tree, overrides, setOverrides, isSyncing, 
   const [showDescription, setShowDescription] = useState(true);
   const [chatBoxMode, setChatBoxMode] = useState<'dm' | 'note'>('dm');
   
+  // Stable fallback year for purity
+  const currentYear = useMemo(() => new Date().getUTCFullYear(), []);
+
   const hideTimerRef = useRef<any>(null);
   const cycleIntervalRef = useRef<any>(null);
   const showUiRef = useRef(showUi);
@@ -365,7 +368,7 @@ export default function FileCabinet({ tree, overrides, setOverrides, isSyncing, 
             <button onClick={() => setIsGlobalView(!isGlobalView)} className={`p-3.5 rounded-full border transition-all shadow-xl ${isGlobalView ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500'}`}><Users className="w-4 h-4" /></button>
             <button onClick={() => setShowDescription(!showDescription)} className={`p-3.5 rounded-full border transition-all shadow-xl ${showDescription ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500'}`} title="Toggle Description"><AlignLeft className="w-4 h-4" /></button>
             <button onClick={() => navigate(`${currentFamily.slug ? '/' + currentFamily.slug : ''}/archive`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 rounded-full border border-gray-200 transition-all shadow-xl"><ChevronLeft className="w-4 h-4 text-gray-500" /></button>
-            <button onClick={() => navigate(`${slugPrefix}/ingest`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 rounded-full border border-gray-200 transition-all shadow-xl"><Terminal className="w-4 h-4 text-gray-500" /></button>
+            <button onClick={() => navigate(`${slugPrefix}/upload`)} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 rounded-full border border-gray-200 transition-all shadow-xl"><Upload className="w-4 h-4 text-gray-500" /></button>
             <button onClick={cycleGridMode} className="p-3.5 bg-white dark:bg-white/5 hover:bg-gray-100 rounded-full border border-gray-200 transition-all shadow-xl">{viewMode === 'theatre' ? <Grid className="w-4 h-4 text-gray-500" /> : <Maximize2 className="w-4 h-4 text-gray-500" />}</button>
             <button onClick={toggleTheme} className="p-3.5 bg-white dark:bg-white/5 rounded-full border border-gray-200 transition-all shadow-xl">{theme === 'light' ? <Moon className="w-4 h-4 text-gray-500" /> : <Sun className="w-4 h-4 text-white/40" />}</button>
             <button onClick={() => navigate(`${slugPrefix}/export`)} className="p-3.5 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-2xl hover:bg-gray-800 transition-all"><Download className="w-4 h-4" /></button>
@@ -399,7 +402,7 @@ export default function FileCabinet({ tree, overrides, setOverrides, isSyncing, 
                         />
                     </div>
                     <div className="pointer-events-auto bg-black/40 backdrop-blur-md border border-white/10 px-6 py-4 rounded-sm hover:bg-black/60 transition-colors">
-                      <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1 cursor-pointer hover:text-white" onDoubleClick={() => startEditing(currentMemory.id, 'year', currentMemory.date)}>{editingField?.id === currentMemory.id && editingField.field === 'year' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} className="bg-transparent border-b border-white/30 text-white w-12 outline-none" /> : <span>{new Date(currentMemory.date || Date.now()).getUTCFullYear()}</span>}</div>
+                      <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1 cursor-pointer hover:text-white" onDoubleClick={() => startEditing(currentMemory.id, 'year', currentMemory.date)}>{editingField?.id === currentMemory.id && editingField.field === 'year' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} className="bg-transparent border-b border-white/30 text-white w-12 outline-none" /> : <span>{new Date(currentMemory.date || currentYear).getUTCFullYear()}</span>}</div>
                       <div className="text-xl font-serif italic text-white tracking-wide cursor-pointer hover:text-blue-400" onDoubleClick={() => startEditing(currentMemory.id, 'name', currentMemory.name)}>{editingField?.id === currentMemory.id && editingField.field === 'name' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} className="bg-transparent border-b border-white/30 text-white w-64 outline-none" /> : <span>{currentMemory.name.replace(/\.[^.]+$/, '')}</span>}</div>
                     </div>
                   </motion.div>

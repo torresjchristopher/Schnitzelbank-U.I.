@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Search, MessageSquare, User, Paperclip, ChevronLeft } from 'lucide-react';
+import { Search, MessageSquare, User, Paperclip, ChevronLeft, Users, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ChatService } from '../services/ChatService';
 import type { ChatMessage } from '../services/ChatService';
@@ -13,6 +13,8 @@ interface ChatSession {
   lastSenderName?: string;
   lastSenderPersonId?: string;
   updatedAt: any;
+  isPlaceholder?: boolean;
+  person?: Person;
 }
 
 interface DMPageProps {
@@ -32,6 +34,30 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const chatService = ChatService.getInstance();
+
+  useEffect(() => {
+    const seedLegacyMessage = async () => {
+        if (localStorage.getItem('schnitzel_v4_seeded')) return;
+        
+        console.log("[SEED] Initializing v4 Data Stream with legacy archive...");
+        try {
+            // Re-inject Mary's message into the new v4 system
+            await chatService.sendMessage(
+                ['8v91q9ua42wwzckgzxkb', 'i1bi3xar4pxgwkx0ljgk'],
+                'MURRAY_LEGACY_2026',
+                'Murray // mary ann braccio',
+                'I love you',
+                undefined,
+                '8v91q9ua42wwzckgzxkb' // Mary's ID
+            );
+            localStorage.setItem('schnitzel_v4_seeded', 'true');
+            console.log("[SEED] Legacy archive synchronized.");
+        } catch (e) {
+            console.error("[SEED] Synchronization failed:", e);
+        }
+    };
+    seedLegacyMessage();
+  }, []);
 
   useEffect(() => {
     let personalChats: ChatSession[] = [];
@@ -65,13 +91,8 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
   }, [currentUser.id]);
 
   useEffect(() => {
-    if (selectedChat && selectedChat.id !== 'temp') {
+    if (selectedChat) {
         const unsub = chatService.subscribeToMessages(selectedChat.id, setMessages);
-        return unsub;
-    } else if (selectedChat?.id === 'temp') {
-        // For new (temp) chats, we can try to derive the ID but usually it's empty history
-        const chatId = chatService.normalizeParticipantIds(selectedChat.participants).join('--');
-        const unsub = chatService.subscribeToMessages(chatId, setMessages);
         return unsub;
     } else {
         setMessages([]);
@@ -106,18 +127,16 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
   };
 
   const startNewChat = (p: {id: string, name: string, type: 'family' | 'person' | 'global'}) => {
-    const participants = chatService.normalizeParticipantIds([currentFamily.slug, currentUser.id, p.id]);
-    const existing = chats.find(c => {
-        const cParts = chatService.normalizeParticipantIds(c.participants);
-        return cParts.length === participants.length && 
-               participants.every(id => cParts.includes(id));
-    });
+    const participants = chatService.normalizeParticipantIds([currentUser.id, p.id]);
+    const chatId = participants.join('--');
+    
+    const existing = chats.find(c => c.id === chatId);
     
     if (existing) {
         setSelectedChat(existing);
     } else {
         setSelectedChat({
-            id: 'temp',
+            id: chatId,
             participants: participants,
             updatedAt: null
         });
@@ -132,7 +151,7 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
     await chatService.sendMessage(
       selectedChat.participants,
       currentFamily.slug,
-      `${currentFamily.name.split(' ')[1]} // ${currentUser.name}`, 
+      currentUser.name, 
       inputText,
       undefined,
       currentUser.id
@@ -140,77 +159,72 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
     setInputText('');
   };
 
-  const getChatName = (chat: ChatSession) => {
-    if (chat.participants.includes('GLOBAL_BROADCAST')) return 'The Murray Family (Global)';
+  const getChatName = (chat: any) => {
+    if (chat.participants?.includes('GLOBAL_BROADCAST')) return 'Family Archive (Global)';
     
     const myId = currentUser.id.toLowerCase();
-    const mySlug = (currentFamily.slug || '').toLowerCase();
-    const myName = currentUser.name.toLowerCase();
+    
+    // In the new logic, participants array only has human IDs
+    const otherParticipants = chat.participants?.filter((p: string) => p.toLowerCase() !== myId) || [];
 
-    // 1. Identify human participants that aren't ME
-    const otherParticipants = chat.participants.filter(p => {
-        const norm = p.toLowerCase();
-        return norm !== myId && norm !== mySlug && norm !== 'family_root' && norm !== 'murray';
-    });
-
-    if (otherParticipants.length > 0) {
-        // Find the best name for the first other human
+    if (otherParticipants.length === 1) {
         const otherId = otherParticipants[0];
         const person = tree.people.find(p => p.id.toLowerCase() === otherId.toLowerCase());
         if (person) return person.name;
-
-        // Try a name match as backup
-        const matchByName = tree.people.find(p => p.name.toLowerCase().includes(otherId.toLowerCase()));
-        if (matchByName) return matchByName.name;
+        
+        // Try fuzzy matching by ID
+        const fuzzy = tree.people.find(p => otherId.toLowerCase().includes(p.id.toLowerCase()) || p.id.toLowerCase().includes(otherId.toLowerCase()));
+        if (fuzzy) return fuzzy.name;
 
         return otherId.charAt(0).toUpperCase() + otherId.slice(1).replace(/[-_]/g, ' ');
+    } else if (otherParticipants.length > 1) {
+        return `Secure Group (${otherParticipants.length})`;
     }
 
-    // 2. Metadata name fallback - If someone ELSE sent a message, use their name
-    if (chat.lastSenderName) {
-        const sender = chat.lastSenderName.includes('//') ? chat.lastSenderName.split('//')[1].trim() : chat.lastSenderName;
-        if (!myName.includes(sender.toLowerCase()) && sender.toLowerCase() !== 'murray') {
-            return sender;
-        }
+    // If it's a private terminal (only self)
+    if (otherParticipants.length === 0 && chat.participants?.includes(myId)) {
+        return `${currentUser.name} (Self)`;
     }
 
-    return `My Notes & Files (${currentUser.name.split(' ')[0]})`;
+    if (chat.lastSenderName && !chat.lastSenderName.toLowerCase().includes(currentUser.name.toLowerCase())) {
+        return chat.lastSenderName.includes('//') ? chat.lastSenderName.split('//')[1].trim() : chat.lastSenderName;
+    }
+
+    return `Encrypted Data Stream`;
   };
+
+  const sidebarItems = useMemo(() => {
+    return chats.sort((a, b) => {
+        const timeA = a.updatedAt?.seconds || 0;
+        const timeB = b.updatedAt?.seconds || 0;
+        return timeB - timeA;
+    });
+  }, [chats]);
 
   const slugPrefix = currentFamily.slug ? `/${currentFamily.slug}` : '';
 
-  const visibleChats = chats.filter(c => {
-      // Show everything that has messages
-      if (c.lastMessage) return true;
-      // Show global broadcast always if it exists
-      if (c.participants.includes('GLOBAL_BROADCAST')) return true;
-      // Filter out empty system threads (only includes self/family and no messages)
-      const normalizedParticipants = chatService.normalizeParticipantIds(c.participants);
-      const isSystemThread = normalizedParticipants.every(p => p === currentUser.id.toLowerCase() || p === (currentFamily.slug || '').toLowerCase());
-      if (isSystemThread && !c.lastMessage) return false;
-      return true;
-  });
-
   return (
-    <div className="flex h-screen bg-white text-black font-sans overflow-hidden">
-      <div className="w-80 border-r border-black/5 flex flex-col h-full bg-gray-50/50">
-        <div className="p-6 flex flex-col gap-6">
+    <div className="flex h-screen bg-white dark:bg-black text-gray-900 dark:text-white font-sans overflow-hidden transition-colors duration-500 relative">
+      <div className="absolute inset-0 bg-noise opacity-[0.15] pointer-events-none z-0"></div>
+      
+      <div className="flex-none w-80 border-r border-gray-100 dark:border-white/5 flex flex-col h-full bg-gray-50/40 dark:bg-white/[0.01] backdrop-blur-3xl z-10">
+        <div className="p-8 flex flex-col gap-8">
             <div className="flex items-center justify-between">
-                <button onClick={() => navigate(`${slugPrefix}/archive`)} className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-all">
-                    <ChevronLeft className="w-5 h-5 text-black" />
+                <button onClick={() => navigate(`${slugPrefix}/archive`)} className="p-2.5 -ml-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all group">
+                    <ChevronLeft className="w-5 h-5 text-gray-400 group-hover:text-black dark:group-hover:text-white transition-colors" />
                 </button>
-                <h1 className="text-sm font-black uppercase tracking-[0.3em] text-black/40">Messages</h1>
+                <h1 className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-400 dark:text-white/20 italic">Communication Portal</h1>
             </div>
             <div className="relative">
-                <div className="flex items-center bg-white border border-black/10 rounded-sm px-4 py-2.5 shadow-sm focus-within:border-emerald-500 transition-colors">
-                    <Search className="w-3.5 h-3.5 text-black/40 mr-3" />
-                    <input type="text" placeholder="NEW CONVERSATION..." className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest focus:ring-0 p-0 w-full text-black placeholder:text-black/20" value={searchQuery} onChange={(e) => handleSearch(e.target.value)} />
+                <div className="flex items-center bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-sm px-5 py-3 shadow-sm focus-within:border-emerald-500/50 transition-all backdrop-blur-md">
+                    <Search className="w-3.5 h-3.5 text-gray-400 dark:text-white/20 mr-4" />
+                    <input type="text" placeholder="SECURE SEARCH..." className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest focus:ring-0 p-0 w-full text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-white/10" value={searchQuery} onChange={(e) => handleSearch(e.target.value)} />
                 </div>
                 <AnimatePresence>
                     {searchResults.length > 0 && (
-                        <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute z-50 left-0 right-0 top-full mt-2 bg-white border border-black/10 rounded-sm shadow-2xl overflow-hidden">
+                        <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute z-50 left-0 right-0 top-full mt-2 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-white/10 rounded-sm shadow-2xl overflow-hidden ring-1 ring-black/5 dark:ring-white/10">
                             {searchResults.map(r => (
-                                <div key={r.id} className="p-4 hover:bg-emerald-500/5 cursor-pointer border-b border-black/5 last:border-0 flex items-center gap-3 transition-colors text-black" onClick={() => startNewChat(r)}>
+                                <div key={r.id} className="p-4 hover:bg-emerald-500/5 dark:hover:bg-emerald-500/10 cursor-pointer border-b border-gray-100 dark:border-white/5 last:border-0 flex items-center gap-3 transition-colors text-gray-900 dark:text-white" onClick={() => startNewChat(r)}>
                                     <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
                                         {r.type === 'family' ? <MessageSquare className="w-3.5 h-3.5 text-emerald-500" /> : <User className="w-3.5 h-3.5 text-emerald-500" />}
                                     </div>
@@ -226,87 +240,106 @@ export default function DMPage({ tree, currentFamily, currentUser }: DMPageProps
             </div>
         </div>
         <div className="flex-1 overflow-y-auto px-4 pb-10 space-y-1 custom-scrollbar">
-            {visibleChats.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center px-6 opacity-20">
-                    <MessageSquare className="w-8 h-8 text-black mb-4" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em]">No Active Transmissions</p>
+            {sidebarItems.length === 0 ? (
+                <div className="p-10 text-center opacity-20">
+                    <MessageSquare className="w-8 h-8 mx-auto mb-4" />
+                    <p className="text-[8px] font-black uppercase tracking-widest text-gray-400">No Active Transmissions</p>
                 </div>
             ) : (
-                visibleChats.map(chat => (
-                    <div key={chat.id} className={`p-4 rounded-sm cursor-pointer transition-all border ${selectedChat?.id === chat.id ? 'bg-white border-black/10 shadow-md' : 'border-transparent hover:bg-black/5'}`} onClick={() => setSelectedChat(chat)}>
-                        <div className="flex flex-col gap-1 text-black">
-                            <div className="flex justify-between items-start">
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${selectedChat?.id === chat.id ? 'text-emerald-500' : 'opacity-60'}`}>{getChatName(chat)}</span>
-                                <span className="text-[7px] opacity-20">
-                                    {chat.updatedAt ? new Date(chat.updatedAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'NOW'}
-                                </span>
+                sidebarItems.map((chat: any) => {
+                    const isSelected = selectedChat?.id === chat.id;
+                    const isGlobal = chat.participants?.includes('GLOBAL_BROADCAST');
+                    const isGroup = !isGlobal && chat.participants?.length > 1; // more than just ME
+
+                    return (
+                        <div key={chat.id} className={`p-4 rounded-sm cursor-pointer transition-all border ${isSelected ? 'bg-white dark:bg-white/[0.05] border-gray-200 dark:border-white/10 shadow-md' : 'border-transparent hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => setSelectedChat(chat)}>
+                            <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black text-white ${isGlobal ? 'bg-black' : isGroup ? 'bg-blue-500' : 'bg-emerald-500'} shadow-sm`}>
+                                    {isGlobal ? <Globe className="w-4 h-4" /> : isGroup ? <Users className="w-4 h-4" /> : getChatName(chat)[0]}
+                                </div>
+                                <div className="flex-1 flex flex-col min-w-0">
+                                    <div className="flex justify-between items-start">
+                                        <span className={`text-[10px] font-black uppercase tracking-widest truncate ${isSelected ? 'text-emerald-500' : 'opacity-60 text-gray-900 dark:text-white'}`}>{getChatName(chat)}</span>
+                                        <span className="text-[7px] opacity-20 ml-2 whitespace-nowrap text-gray-400 dark:text-white/40">
+                                            {chat.updatedAt ? new Date(chat.updatedAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'NOW'}
+                                        </span>
+                                    </div>
+                                    <p className="text-[9px] opacity-30 truncate uppercase tracking-tighter font-bold text-gray-500 dark:text-white/40">
+                                        {chat.lastMessage || 'START TRANSMISSION...'}
+                                    </p>
+                                </div>
                             </div>
-                            <p className="text-[9px] opacity-30 truncate uppercase tracking-tighter font-bold">
-                                {chat.lastMessage || 'START TRANSMISSION...'}
-                            </p>
                         </div>
-                    </div>
-                ))
+                    );
+                })
             )}
         </div>
       </div>
-      <div className="flex-1 flex flex-col h-full relative bg-white">
+      <div className="flex-1 flex flex-col h-full relative bg-white dark:bg-black transition-colors duration-500 z-10">
         {selectedChat ? (
             <>
-                <header className="h-20 border-b border-black/5 flex items-center justify-between px-10">
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-serif italic text-xl shadow-lg">
+                <header className="h-24 border-b border-gray-100 dark:border-white/5 flex items-center justify-between px-12 bg-white/40 dark:bg-black/40 backdrop-blur-3xl shadow-sm relative z-20">
+                    <div className="flex items-center gap-6">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-serif italic text-2xl shadow-2xl relative group ${selectedChat.participants?.includes('GLOBAL_BROADCAST') ? 'bg-black' : selectedChat.participants?.length > 1 ? 'bg-blue-600' : 'bg-emerald-600'}`}>
+                            <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-10 transition-opacity"></div>
                             {getChatName(selectedChat)[0]}
                         </div>
-                        <div className="flex flex-col text-black">
-                            <h2 className="text-sm font-black uppercase tracking-widest leading-none">{getChatName(selectedChat)}</h2>
-                            <span className="text-[8px] text-emerald-500 uppercase font-black tracking-[0.3em] mt-1 animate-pulse italic">ACTIVE ENCRYPTION</span>
+                        <div className="flex flex-col">
+                            <h2 className="text-base font-black uppercase tracking-widest leading-none text-gray-900 dark:text-white">{getChatName(selectedChat)}</h2>
+                            <div className="flex items-center gap-2 mt-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                <span className="text-[8px] text-emerald-500 uppercase font-black tracking-[0.4em] italic">ACTIVE TRANSMISSION</span>
+                            </div>
                         </div>
                     </div>
                 </header>
-                <div className="flex-1 overflow-y-auto p-10 space-y-8 no-scrollbar">
+                <div className="flex-1 overflow-y-auto p-12 space-y-10 no-scrollbar relative z-10">
                     {messages.map((m, i) => {
                         const isMe = m.senderPersonId?.toLowerCase() === currentUser.id.toLowerCase();
                         return (
-                            <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                <div className="flex items-center gap-3 mb-1 px-1 text-black">
-                                    <span className={`text-[7px] font-black uppercase tracking-[0.2em] ${isMe ? 'text-emerald-500' : 'opacity-40'}`}>
-                                        {isMe ? 'YOU' : (m.senderName || 'Unknown')}
+                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                <div className="flex items-center gap-4 mb-2 px-1 opacity-40">
+                                    <span className={`text-[8px] font-black uppercase tracking-[0.2em] ${isMe ? 'text-emerald-500' : 'text-gray-900 dark:text-white'}`}>
+                                        {isMe ? 'IDENTITY: YOU' : `ORIGIN: ${m.senderName || 'Unknown'}`}
                                     </span>
-                                    <span className="text-[6px] opacity-20 uppercase tracking-tighter">{m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString() : ''}</span>
+                                    <span className="text-[7px] uppercase tracking-tighter text-gray-400 dark:text-white/40">{m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}</span>
                                 </div>
-                                <div className={`max-w-[70%] p-4 rounded-sm text-[11px] font-black leading-relaxed shadow-sm ${
+                                <div className={`max-w-[80%] p-6 rounded-sm text-[12px] font-black leading-relaxed shadow-2xl transition-all border ${
                                     isMe 
-                                    ? 'bg-emerald-500 text-black selection:bg-black/20' 
-                                    : 'bg-gray-50 text-black border border-black/5'
+                                    ? 'bg-emerald-500 text-black border-emerald-400/50 selection:bg-black/20' 
+                                    : 'bg-white/50 dark:bg-white/[0.02] text-gray-900 dark:text-white border-gray-200 dark:border-white/5 backdrop-blur-md'
                                 }`}>
                                     {m.text}
                                     {m.artifactId && (
-                                        <div className="mt-3 p-2 bg-black/5 rounded-sm flex items-center gap-3 cursor-pointer hover:bg-black/10 transition-all border border-black/5" onClick={() => navigate(`${slugPrefix}/archive?artifact=${m.artifactId}`)}>
-                                            <Paperclip className="w-3 h-3 text-black/40" />
-                                            <span className="text-[8px] font-black uppercase tracking-widest text-black/60">LINKED ARTIFACT: {m.artifactName || 'MEM'}</span>
+                                        <div className="mt-5 p-3 bg-black/5 dark:bg-white/5 rounded-sm flex items-center gap-4 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-black/5 dark:border-white/5 group" onClick={() => navigate(`${slugPrefix}/archive?artifact=${m.artifactId}`)}>
+                                            <Paperclip className="w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity" />
+                                            <div className="flex flex-col">
+                                                <span className="text-[7px] font-black uppercase tracking-widest opacity-40">Linked Artifact</span>
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{m.artifactName || 'MEM'}</span>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
-                            </div>
+                            </motion.div>
                         );
                     })}
                     <div ref={messagesEndRef} />
                 </div>
-                <div className="p-10 bg-white">
-                    <div className="bg-white border border-black/10 rounded-sm p-4 flex items-center gap-6 shadow-2xl focus-within:border-emerald-500 transition-colors">
-                        <input type="text" placeholder="TYPE MESSAGE..." className="flex-1 bg-transparent border-none text-[10px] font-black uppercase tracking-[0.2em] focus:ring-0 p-0 text-black placeholder:text-black/20" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} />
-                        <button onClick={handleSend} className="w-10 h-10 bg-black text-white rounded-sm flex items-center justify-center hover:opacity-80 transition-all shadow-lg active:scale-95"><Send className="w-4 h-4" /></button>
+                <div className="p-12 bg-white/20 dark:bg-black/20 backdrop-blur-3xl transition-colors duration-500 relative z-20">
+                    <div className="bg-white/80 dark:bg-white/[0.02] border border-gray-200 dark:border-white/10 rounded-sm p-6 flex items-center gap-8 shadow-[0_50px_100px_rgba(0,0,0,0.4)] focus-within:border-emerald-500/50 transition-all backdrop-blur-3xl">
+                        <input type="text" placeholder="TRANSMIT DATA..." className="flex-1 bg-transparent border-none text-[11px] font-black uppercase tracking-[0.3em] focus:ring-0 p-0 text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-white/10" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} />
+                        <button onClick={handleSend} className="px-8 py-3 bg-gray-900 dark:bg-white text-white dark:text-black rounded-sm flex items-center justify-center hover:opacity-80 transition-all shadow-2xl active:scale-95 text-[10px] font-black uppercase tracking-widest">Transmit</button>
                     </div>
                 </div>
             </>
         ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-20 text-center text-black opacity-40">
-                <div className="w-32 h-32 border border-black/5 rounded-full flex items-center justify-center mb-10">
-                    <MessageSquare className="w-12 h-12" />
+            <div className="flex-1 flex flex-col items-center justify-center p-32 text-center opacity-30 group">
+                <div className="w-48 h-48 border border-gray-100 dark:border-white/5 rounded-full flex items-center justify-center mb-16 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-noise animate-pulse opacity-20"></div>
+                    <MessageSquare className="w-16 h-16 group-hover:scale-110 transition-transform duration-1000" />
                 </div>
-                <h2 className="text-xl font-serif font-bold italic tracking-tighter uppercase mb-2">Secure Communications</h2>
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] max-w-xs leading-relaxed">Select a terminal to begin encrypted data transfer.</p>
+                <h2 className="text-3xl font-serif font-black italic tracking-tighter uppercase mb-6 text-gray-900 dark:text-white">Secure Communications</h2>
+                <p className="text-[10px] font-black uppercase tracking-[0.5em] max-w-xs leading-loose text-gray-500 dark:text-white/40">Select a secure terminal from the registry to begin encrypted data transfer protocol.</p>
             </div>
         )}
       </div>

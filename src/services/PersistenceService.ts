@@ -1,4 +1,4 @@
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db as firestoreDb } from '../firebase';
 import type { Memory, Person } from '../types';
 
@@ -185,15 +185,37 @@ class PersistenceServiceImpl {
         const memory = memories.find(m => m.id === id);
         if (!memory) continue;
 
+        const isOldFamily = memory.tags?.isFamilyMemory;
+        const oldPersonId = memory.tags?.personIds?.[0];
+        
+        let oldRef;
+        if (isOldFamily || !oldPersonId || oldPersonId === 'FAMILY_ROOT') {
+            oldRef = doc(firestoreDb, 'trees', protocolKey, 'memories', memory.id);
+        } else {
+            oldRef = doc(firestoreDb, 'trees', protocolKey, 'people', oldPersonId, 'memories', memory.id);
+        }
+
         const updatedMemory = {
             ...memory,
             tags: {
                 ...memory.tags,
-                personIds: [targetPersonId]
+                personIds: [targetPersonId],
+                isFamilyMemory: targetPersonId === 'FAMILY_ROOT'
             }
         };
 
         await this.saveMemorySync(updatedMemory, protocolKey);
+
+        // If the path changed, delete the old document
+        const isNewFamily = targetPersonId === 'FAMILY_ROOT';
+        if (isOldFamily !== isNewFamily || (!isOldFamily && oldPersonId !== targetPersonId)) {
+            console.log(`🗑️ Deleting from old path: ${oldRef.path}`);
+            try {
+                await deleteDoc(oldRef);
+            } catch (err) {
+                console.error(`Failed to delete old artifact at ${oldRef.path}`, err);
+            }
+        }
     }
   }
 

@@ -38,6 +38,7 @@ export default function BiographyPage({ tree, currentFamily }: BiographyPageProp
   const navigate = useNavigate();
   const [selectedPersonIndex, setSelectedPersonIndex] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editBirthDate, setEditBirthDate] = useState('');
   const [isShuffling, setIsShuffling] = useState(false);
@@ -83,6 +84,7 @@ export default function BiographyPage({ tree, currentFamily }: BiographyPageProp
 
   useEffect(() => {
     if (currentPerson) {
+        setEditName(currentPerson.name || '');
         setEditBio(currentPerson.bio || '');
         setEditBirthDate(currentPerson.birthDate || '');
     }
@@ -90,7 +92,7 @@ export default function BiographyPage({ tree, currentFamily }: BiographyPageProp
 
   const handleSave = async () => {
     if (!currentPerson) return;
-    const updatedPerson = { ...currentPerson, bio: editBio, birthDate: editBirthDate };
+    const updatedPerson = { ...currentPerson, name: editName, bio: editBio, birthDate: editBirthDate };
     try {
         await PersistenceService.getInstance().savePersonSync(updatedPerson, tree.protocolKey || 'MURRAY_LEGACY_2026');
         // Update local tree state if possible, but here we'll rely on the subscription to update eventually
@@ -158,7 +160,7 @@ export default function BiographyPage({ tree, currentFamily }: BiographyPageProp
                     <div className="text-center">
                         <h3 className="text-lg font-serif font-bold italic group-hover:text-emerald-500 transition-colors">{p.name}</h3>
                         <p className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest">
-                            {p.birthYear || (p.birthDate ? new Date(p.birthDate).getFullYear() : 'Sovereign')}
+                            {p.birthYear || (p.birthDate ? new Date(p.birthDate).getFullYear() : 'Established')}
                         </p>
                     </div>
                 </motion.div>
@@ -220,7 +222,16 @@ export default function BiographyPage({ tree, currentFamily }: BiographyPageProp
                     >
                         <div className="flex flex-col gap-2">
                             <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.5em] leading-tight">Biographical Profile</span>
-                            <h2 className="text-5xl md:text-7xl font-serif font-bold italic tracking-tighter text-gray-900 dark:text-white leading-none">{currentPerson.name}</h2>
+                            {isEditing ? (
+                                <input 
+                                    type="text" 
+                                    value={editName} 
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="bg-transparent border-b border-gray-200 dark:border-white/20 text-5xl md:text-7xl font-serif font-bold italic tracking-tighter outline-none focus:border-emerald-500 transition-all w-full text-gray-900 dark:text-white"
+                                />
+                            ) : (
+                                <h2 className="text-5xl md:text-7xl font-serif font-bold italic tracking-tighter text-gray-900 dark:text-white leading-none cursor-pointer" onDoubleClick={() => setIsEditing(true)}>{currentPerson.name}</h2>
+                            )}
                         </div>
 
                         <div className="flex flex-col gap-6">
@@ -235,8 +246,8 @@ export default function BiographyPage({ tree, currentFamily }: BiographyPageProp
                                         className="bg-transparent border-b border-gray-200 dark:border-white/20 text-xl font-serif italic outline-none focus:border-emerald-500 transition-all w-full"
                                     />
                                 ) : (
-                                    <span className="text-2xl font-serif italic text-gray-600 dark:text-white/60" onClick={() => setIsEditing(true)}>
-                                        {currentPerson.birthDate || "UNKNOWN PROTOCOL"}
+                                    <span className="text-2xl font-serif italic text-gray-600 dark:text-white/60" onDoubleClick={() => setIsEditing(true)}>
+                                        {currentPerson.birthDate || "ESTABLISHED"}
                                     </span>
                                 )}
                             </div>

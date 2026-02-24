@@ -51,7 +51,7 @@ function App() {
   const getInitialSlug = () => {
     const hash = window.location.hash;
     const parts = hash.split('/');
-    return (parts.length > 1 && !['archive', 'documents', 'ingest'].includes(parts[1])) ? parts[1] : '';
+    return (parts.length > 1 && !['archive', 'documents', 'upload'].includes(parts[1])) ? parts[1] : '';
   };
 
   // Family State
@@ -311,7 +311,7 @@ function App() {
                     currentUser={currentUser}
                 />
             } />
-            <Route path="/ingest" element={<WebIngestor tree={memoryTree} currentFamily={currentFamily} />} />
+            <Route path="/upload" element={<WebIngestor tree={memoryTree} currentFamily={currentFamily} />} />
 
             {/* Family-Specific Routes */}
             <Route path="/:slug/archive" element={
@@ -338,7 +338,7 @@ function App() {
                     currentUser={currentUser}
                 />
             } />
-            <Route path="/:slug/ingest" element={<WebIngestor tree={memoryTree} currentFamily={currentFamily} />} />
+            <Route path="/:slug/upload" element={<WebIngestor tree={memoryTree} currentFamily={currentFamily} />} />
             <Route path="/export" element={<ExportPage tree={memoryTree} currentFamily={currentFamily} />} />
             <Route path="/:slug/export" element={<ExportPage tree={memoryTree} currentFamily={currentFamily} />} />
             <Route path="/biography" element={<BiographyPage tree={memoryTree} currentFamily={currentFamily} />} />

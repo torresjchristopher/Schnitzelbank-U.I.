@@ -103,7 +103,7 @@ export default function LandingPage({ onUnlock, itemCount = 0, error = null, isS
             ) : safeItemCount > 0 ? (
               <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500/40 tracking-widest">
                 <span className="w-1 h-1 rounded-full bg-current animate-pulse"></span>
-                {safeItemCount} Active Fragments
+                {safeItemCount} Active Files
               </div>
             ) : (
               <div className="flex items-center gap-1.5 text-red-500/40 dark:text-red-500/20 tracking-widest italic">

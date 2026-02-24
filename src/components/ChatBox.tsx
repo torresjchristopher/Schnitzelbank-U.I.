@@ -22,7 +22,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
   const [searchText, setSearchText] = useState('');
   const [messageText, setMessageText] = useState('');
   const [searchResults, setSearchResults] = useState<{id: string, name: string, type: 'family' | 'person' | 'global'}[]>([]);
-  const [isLinkingActive, setIsLinkingActive] = useState(true);
+  const [isLinkingActive, setIsLinkingActive] = useState(false);
   
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isMessageFocused, setIsMessageFocused] = useState(false);
@@ -47,8 +47,10 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
   }, [participants, currentFamily.slug, mode, attachedArtifact?.id, currentUser.id]);
 
   useEffect(() => {
-    onInputActive?.(messageText.length > 0 || searchText.length > 0);
-  }, [messageText, searchText, onInputActive]);
+    // Signal active status to pause carousel ONLY if user is actually typing or linking
+    const isActive = messageText.length > 0 || searchText.length > 0 || (isLinkingActive && !!attachedArtifact);
+    onInputActive?.(isActive);
+  }, [messageText, searchText, isLinkingActive, attachedArtifact, onInputActive]);
 
   const handleSearch = async (val: string) => {
     if (mode === 'note') return;
@@ -110,33 +112,33 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
         <div className="flex gap-4">
             <button 
                 onClick={() => onModeChange('dm')} 
-                className={`p-2.5 rounded-full transition-all ${mode === 'dm' ? 'bg-black text-white' : 'text-black hover:bg-black/5'}`}
+                className={`p-2.5 rounded-full transition-all ${mode === 'dm' ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-lg' : 'text-gray-500 dark:text-white/40 hover:bg-black/5 dark:hover:bg-white/5'}`}
             >
                 <MessageSquare className="w-5 h-5" />
             </button>
             <button 
                 onClick={() => onModeChange('note')} 
-                className={`p-2.5 rounded-full transition-all ${mode === 'note' ? 'bg-emerald-500 text-black' : 'text-black hover:bg-black/5'}`}
+                className={`p-2.5 rounded-full transition-all ${mode === 'note' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-gray-500 dark:text-white/40 hover:bg-black/5 dark:hover:bg-white/5'}`}
             >
                 <StickyNote className="w-5 h-5" />
             </button>
         </div>
 
-        <div className="h-6 w-px bg-black/10" />
+        <div className="h-6 w-px bg-gray-200 dark:bg-white/10" />
 
-        <div className="flex-1 flex items-center gap-16 text-black">
+        <div className="flex-1 flex items-center gap-16 text-gray-900 dark:text-white">
             {/* IMMERSIVE SEARCH */}
             {mode === 'dm' && (
                 <div className="relative flex-1 max-w-[180px] flex items-center group cursor-text" onClick={() => searchInputRef.current?.focus()}>
                     {!isSearchFocused && searchText.length === 0 && (
-                        <span className="text-[11px] font-black uppercase tracking-[0.4em] text-black absolute left-0 pointer-events-none transition-opacity duration-200">
+                        <span className="text-[11px] font-black uppercase tracking-[0.4em] text-gray-400 dark:text-white/20 absolute left-0 pointer-events-none transition-opacity duration-200">
                             Search
                         </span>
                     )}
                     <input 
                         ref={searchInputRef}
                         type="text" 
-                        className="bg-transparent border-none text-[11px] font-black uppercase tracking-widest focus:ring-0 p-0 w-full text-black placeholder:text-black/10"
+                        className="bg-transparent border-none text-[11px] font-black uppercase tracking-widest focus:ring-0 p-0 w-full text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/10"
                         value={searchText}
                         onFocus={() => setIsSearchFocused(true)}
                         onBlur={() => setIsSearchFocused(false)}
@@ -144,14 +146,14 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
                     />
                     <AnimatePresence>
                         {searchResults.length > 0 && (
-                        <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute z-[110] left-0 bottom-full mb-6 bg-white/90 backdrop-blur-xl border border-black/10 rounded-sm shadow-2xl overflow-hidden min-w-[240px]">
+                        <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute z-[110] left-0 bottom-full mb-6 bg-white/90 dark:bg-[#0a0a0a]/90 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-sm shadow-2xl overflow-hidden min-w-[240px]">
                             {searchResults.map(r => (
-                            <div key={r.id} className="p-4 hover:bg-emerald-500/5 cursor-pointer border-b border-black/5 last:border-0 flex items-center justify-between group/item transition-colors" onClick={() => addParticipant(r)}>
-                                <div className="flex items-center gap-3 text-black">
+                            <div key={r.id} className="p-4 hover:bg-emerald-500/5 dark:hover:bg-emerald-500/10 cursor-pointer border-b border-gray-100 dark:border-white/5 last:border-0 flex items-center justify-between group/item transition-colors" onClick={() => addParticipant(r)}>
+                                <div className="flex items-center gap-3 text-gray-900 dark:text-white">
                                     {r.type === 'family' ? <MessageSquare className="w-3.5 h-3.5 opacity-40" /> : r.type === 'global' ? <Globe className="w-3.5 h-3.5 text-emerald-500" /> : <User className="w-3.5 h-3.5 opacity-40" />}
                                     <span className="text-[10px] font-black uppercase tracking-widest">{r.name}</span>
                                 </div>
-                                <UserPlus className="w-3.5 h-3.5 text-black/20 group-hover/item:text-emerald-500 transition-colors" />
+                                <UserPlus className="w-3.5 h-3.5 text-gray-300 dark:text-white/10 group-hover:text-emerald-500 transition-colors" />
                             </div>
                             ))}
                         </motion.div>
@@ -165,7 +167,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
                 {mode === 'dm' && (
                     <button 
                         onClick={() => setIsLinkingActive(!isLinkingActive)}
-                        className={`transition-all w-8 flex justify-center ${isLinkingActive ? 'text-emerald-500' : 'text-black/20 hover:text-black'}`}
+                        className={`transition-all w-8 flex justify-center ${isLinkingActive ? 'text-emerald-500' : 'text-gray-400 dark:text-white/20 hover:text-gray-900 dark:hover:text-white'}`}
                         title={attachedArtifact ? `Link ${attachedArtifact.name}` : 'No artifact selected'}
                     >
                         <Paperclip className="w-5 h-5" />
@@ -174,14 +176,14 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
                 
                 <div className="flex-1 relative flex items-center cursor-text" onClick={() => messageInputRef.current?.focus()}>
                     {!isMessageFocused && messageText.length === 0 && (
-                        <span className="text-[11px] font-black uppercase tracking-[0.4em] text-black absolute left-0 pointer-events-none transition-opacity duration-200">
+                        <span className="text-[11px] font-black uppercase tracking-[0.4em] text-gray-400 dark:text-white/20 absolute left-0 pointer-events-none transition-opacity duration-200">
                             {mode === 'note' ? 'Write a note' : 'Write a message'}
                         </span>
                     )}
                     <input 
                         ref={messageInputRef}
                         type="text" 
-                        className="flex-1 bg-transparent border-none text-[11px] font-black uppercase tracking-widest focus:ring-0 p-0 text-black placeholder:text-black/10"
+                        className="flex-1 bg-transparent border-none text-[11px] font-black uppercase tracking-widest focus:ring-0 p-0 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/10"
                         value={messageText}
                         onFocus={() => setIsMessageFocused(true)}
                         onBlur={() => setIsMessageFocused(false)}
@@ -190,7 +192,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
                     />
                 </div>
 
-                <button onClick={handleSend} className="text-black hover:text-emerald-500 transition-all active:scale-90 w-8 flex justify-center">
+                <button onClick={handleSend} className="text-gray-900 dark:text-white hover:text-emerald-500 transition-all active:scale-90 w-8 flex justify-center">
                     <Send className="w-5 h-5" />
                 </button>
             </div>
@@ -199,9 +201,9 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
             {mode === 'dm' && participants.length > 0 && (
                 <div className="flex gap-2 ml-4">
                     {participants.map(p => (
-                        <div key={p.id} className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-[10px] font-black text-white relative group/p">
+                        <div key={p.id} className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-[10px] font-black text-white relative group/p shadow-lg shadow-emerald-500/20">
                             {p.name[0]}
-                            <X className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-black rounded-full p-0.5 opacity-0 group-hover/p:opacity-100 cursor-pointer shadow-lg" onClick={() => removeParticipant(p.id)} />
+                            <X className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-black dark:bg-white text-white dark:text-black rounded-full p-0.5 opacity-0 group-hover/p:opacity-100 cursor-pointer shadow-lg transition-all" onClick={() => removeParticipant(p.id)} />
                         </div>
                     ))}
                 </div>

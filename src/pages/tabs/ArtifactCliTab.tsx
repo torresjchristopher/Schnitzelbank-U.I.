@@ -18,12 +18,12 @@ export default function ArtifactCliTab() {
   return (
     <div className="text-white max-w-4xl mx-auto font-serif h-full flex flex-col justify-center">
       <div className="text-center mb-8">
-        <span className="text-white/30 font-black text-[9px] uppercase tracking-[0.5em] italic">Ingestion Interface</span>
+        <span className="text-white/30 font-black text-[9px] uppercase tracking-[0.5em] italic">Upload Interface</span>
         <h2 className="text-4xl font-black text-white tracking-tighter italic uppercase mt-2">
           Artifact <span className="underline decoration-white/10 underline-offset-[8px]">CLI.</span>
         </h2>
         <p className="text-sm text-white/40 font-medium italic leading-relaxed max-w-xl mx-auto pt-4">
-          Professional grade ingestion for high-resolution archives. Secure, local-first bridge to the Schnitzelbank sovereign cloud.
+          Professional grade upload for high-resolution archives. Secure, local-first bridge to the Schnitzelbank sovereign cloud.
         </p>
       </div>
 
@@ -52,7 +52,7 @@ export default function ArtifactCliTab() {
           <div className="bg-white/[0.02] border border-white/5 p-6 space-y-3 hover:bg-white/[0.04] transition-colors relative">
             <CheckCircle2 className="w-6 h-6 text-white/40" />
             <h4 className="text-xl font-black text-white uppercase italic tracking-tighter">Bulk Classification</h4>
-            <p className="text-white/40 text-xs font-medium italic leading-relaxed">Automated metadata mapping for high-volume artifact sets using the Murray Ingestion Protocol.</p>
+            <p className="text-white/40 text-xs font-medium italic leading-relaxed">Automated metadata mapping for high-volume artifact sets using the Family Upload Protocol.</p>
           </div>
           
           <a href="./downloads/artifact-cli.zip" download className="flex items-center justify-center gap-3 px-8 py-4 bg-white text-black font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl hover:bg-slate-200 transition-all hover:scale-[1.02] active:scale-95 italic">

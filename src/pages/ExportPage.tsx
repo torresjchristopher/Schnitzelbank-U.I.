@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, UserPlus, Download, ArrowLeft, Loader2, Database, Users, User, CheckCircle2 } from 'lucide-react';
+import { Search, X, UserPlus, Download, ArrowLeft, Loader2, Database, Users, User, CheckCircle2, FileText, Paperclip } from 'lucide-react';
 import { ExportService } from '../services/ExportService';
 import { ChatService } from '../services/ChatService';
 import type { MemoryTree } from '../types';
@@ -18,6 +18,7 @@ export default function ExportPage({ tree, currentFamily }: ExportPageProps) {
   const [selections, setSelections] = useState<{id: string, name: string, type: 'family' | 'person'}[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState('');
+  const [includeFiles, setIncludeFiles] = useState(true);
 
   const chatService = ChatService.getInstance();
 
@@ -46,17 +47,24 @@ export default function ExportPage({ tree, currentFamily }: ExportPageProps) {
     setSelections(selections.filter(s => s.id !== id));
   };
 
-  const runExport = async (all = false) => {
+  const runExport = async (all = false, filesOnly = false) => {
     setIsExporting(true);
     setProgress('Preparing archival build...');
     
     try {
       const filter = all ? undefined : {
         families: selections.filter(s => s.type === 'family').map(s => s.id),
-        people: selections.filter(s => s.type === 'person').map(s => s.id)
+        people: selections.filter(s => s.type === 'person').map(s => s.id),
+        filesOnly: filesOnly || !includeFiles // If specifically filesOnly OR if user toggled off files (assuming files meant non-images)
       };
 
-      const blob = await ExportService.getInstance().exportAsZip(currentFamily, filter);
+      // If filesOnly is true, we want a special mode. Let's adjust filter logic.
+      const finalFilter = all ? (filesOnly ? { filesOnly: true } : undefined) : {
+          ...filter,
+          filesOnly: filesOnly || !includeFiles
+      };
+
+      const blob = await ExportService.getInstance().exportAsZip(currentFamily, finalFilter as any);
       
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -86,8 +94,8 @@ export default function ExportPage({ tree, currentFamily }: ExportPageProps) {
           <ArrowLeft className="w-5 h-5 text-gray-400 dark:text-white/40 group-hover:text-black dark:group-hover:text-white" />
         </button>
         <div className="text-center flex flex-col items-center">
-          <span className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.5em] mb-1 italic">Production Export</span>
-          <h1 className="text-2xl font-bold tracking-tighter uppercase italic">Archive Release</h1>
+          <span className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.5em] mb-1 italic">Archival Export</span>
+          <h1 className="text-2xl font-bold tracking-tighter uppercase italic">Export Archive</h1>
         </div>
         <div className="w-12"></div>
       </header>
@@ -101,23 +109,42 @@ export default function ExportPage({ tree, currentFamily }: ExportPageProps) {
                 <span>Full Harvest</span>
             </div>
             <p className="text-sm text-gray-500 dark:text-white/40 leading-relaxed font-serif italic">
-                Initialize a complete archival dump of the entire Schnitzelbank network. This includes all registered families and their respective subjects, organized into editorial hierarchies.
+                Initialize a complete archival dump of your family website. Choose to export everything or strictly documents and records.
             </p>
-            <button 
-                disabled={isExporting}
-                onClick={() => runExport(true)}
-                className="w-full py-5 bg-emerald-500 text-white font-black text-[11px] uppercase tracking-[0.4em] hover:bg-emerald-400 transition-all active:scale-95 shadow-xl flex items-center justify-center gap-4"
-            >
-                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                {isExporting ? 'HARVESTING DATA...' : 'EXPORT ENTIRE SCHNITZELBANK'}
-            </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button 
+                    disabled={isExporting}
+                    onClick={() => runExport(true, false)}
+                    className="py-5 bg-emerald-500 text-white font-black text-[10px] uppercase tracking-[0.3em] hover:bg-emerald-400 transition-all active:scale-95 shadow-xl flex items-center justify-center gap-3"
+                >
+                    {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    EXPORT ENTIRE FAMILY
+                </button>
+                <button 
+                    disabled={isExporting}
+                    onClick={() => runExport(true, true)}
+                    className="py-5 bg-black dark:bg-white text-white dark:text-black font-black text-[10px] uppercase tracking-[0.3em] hover:opacity-80 transition-all active:scale-95 shadow-xl flex items-center justify-center gap-3"
+                >
+                    {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                    EXPORT FILES ONLY
+                </button>
+            </div>
         </section>
 
         {/* CUSTOM EXPORT SECTION */}
         <section className="space-y-8">
-          <div className="flex items-center gap-4 text-gray-400 dark:text-white/30 uppercase text-[9px] font-black tracking-[0.3em]">
-            <Search className="w-3 h-3" />
-            <span>Target Specific Protocols</span>
+          <div className="flex items-center justify-between text-gray-400 dark:text-white/30 uppercase text-[9px] font-black tracking-[0.3em]">
+            <div className="flex items-center gap-4">
+                <Search className="w-3 h-3" />
+                <span>Custom Selection</span>
+            </div>
+            <button 
+                onClick={() => setIncludeFiles(!includeFiles)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${includeFiles ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400'}`}
+            >
+                <Paperclip className="w-3 h-3" />
+                <span className="text-[8px] font-black">{includeFiles ? 'INCLUDING FILES' : 'PICTURES ONLY'}</span>
+            </button>
           </div>
           
           <div className="space-y-4">
