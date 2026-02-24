@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Lock, Database, Sun, Moon, CheckSquare, Square, AlignLeft, MessageCircle, StickyNote, Shuffle, Star, User, Upload, RotateCw, Trash2, FilePlus, Loader2, X, Play, Users } from 'lucide-react';
+import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Lock, Database, Sun, Moon, CheckSquare, Square, AlignLeft, MessageCircle, StickyNote, Shuffle, Star, User, Upload, RotateCw, Trash2, FilePlus, Loader2, X, Play, Users, Paperclip } from 'lucide-react';
 import type { MemoryTree, Memory, Person } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PersistenceService } from '../services/PersistenceService';
