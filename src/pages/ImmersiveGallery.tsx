@@ -649,16 +649,29 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                         </div>
                     )}
 
-                    {/* METADATA CARD - BOTTOM LEFT (Above Menu) */}
+                    {/* METADATA CARD - ICONIC REDESIGN */}
                     {!isVideoPlaying && showDescription && (
-                        <div className="absolute bottom-32 left-10 pointer-events-auto bg-black/40 backdrop-blur-md border border-white/10 px-6 py-4 rounded-sm hover:bg-black/60 transition-colors text-left shadow-2xl">
-                          <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1 cursor-pointer hover:text-white transition-colors" onDoubleClick={(e) => { e.stopPropagation(); startEditing(currentMemory.id, 'year', currentMemory.date); }}>
-                            {editingField?.id === currentMemory.id && editingField.field === 'year' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-white/30 text-white w-12 outline-none text-left" /> : <span>{new Date(currentMemory.date || currentYear).getUTCFullYear()}</span>}
+                        <motion.div 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="absolute bottom-36 left-10 pointer-events-auto flex flex-col gap-0 shadow-[0_50px_100px_rgba(0,0,0,0.8)] rounded-sm overflow-hidden"
+                        >
+                          <div className="bg-emerald-500 px-4 py-1 flex justify-between items-center group/edit cursor-pointer" onDoubleClick={(e) => { e.stopPropagation(); startEditing(currentMemory.id, 'year', currentMemory.date); }}>
+                            <span className="text-[8px] font-black text-black uppercase tracking-[0.4em]">Archival Entry</span>
+                            <div className="text-[10px] font-black text-black uppercase tracking-widest">
+                                {editingField?.id === currentMemory.id && editingField.field === 'year' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-black/10 border-none text-black w-12 outline-none p-0" /> : <span>{new Date(currentMemory.date || currentYear).getUTCFullYear()}</span>}
+                            </div>
                           </div>
-                          <div className="text-xl font-serif italic text-white tracking-wide cursor-pointer hover:text-emerald-400 transition-colors" onDoubleClick={(e) => { e.stopPropagation(); startEditing(currentMemory.id, 'name', currentMemory.name); }}>
-                            {editingField?.id === currentMemory.id && editingField.field === 'name' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-transparent border-b border-white/30 text-white w-64 outline-none text-left" /> : <span>{currentMemory.name.replace(/\.[^.]+$/, '')}</span>}
+                          <div className="bg-black/80 backdrop-blur-2xl px-6 py-5 border-l-4 border-emerald-500 group/name cursor-pointer" onDoubleClick={(e) => { e.stopPropagation(); startEditing(currentMemory.id, 'name', currentMemory.name); }}>
+                            <div className="text-2xl font-serif font-black italic text-white tracking-tight leading-none">
+                                {editingField?.id === currentMemory.id && editingField.field === 'name' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-white/5 border-none text-white w-64 outline-none p-0" /> : <span>{currentMemory.name.replace(/\.[^.]+$/, '')}</span>}
+                            </div>
+                            <div className="flex items-center gap-2 mt-3 opacity-40">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                <span className="text-[7px] font-black uppercase tracking-[0.3em] text-white">Verified Fragment</span>
+                            </div>
                           </div>
-                        </div>
+                        </motion.div>
                     )}
                   </div>
                 )}
@@ -681,6 +694,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                     >
                         <MenuButton onClick={cycleGridMode} icon={viewMode === 'theatre' ? Grid : Maximize2} label="Grid" active={viewMode !== 'theatre'} />
                         <MenuButton onClick={() => navigate(`${slugPrefix}/documents`)} icon={Database} label="Cabinet" />
+                        <MenuButton onClick={() => setIsNotesFilterActive(!isNotesFilterActive)} icon={StickyNote} label="Notes" active={isNotesFilterActive} />
                         
                         <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1" />
                         

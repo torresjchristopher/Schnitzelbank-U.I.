@@ -194,18 +194,23 @@ export default function WebIngestor({ tree, currentFamily }: WebIngestorProps) {
                             <motion.div key="selected" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full space-y-6">
                                 <div className="max-h-[200px] overflow-y-auto pr-4 space-y-3 no-scrollbar">
                                     {files.map((f, i) => (
-                                        <div key={i} className="flex items-center justify-between p-4 bg-white dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/5">
+                                        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} key={i} className="flex items-center justify-between p-4 bg-white dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/5 shadow-sm group/file">
                                             <div className="flex items-center gap-4 truncate">
-                                                <div className="text-blue-500">{getFileIcon(f.name)}</div>
-                                                <span className="text-[11px] font-bold truncate opacity-80">{f.name}</span>
+                                                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover/file:bg-blue-500 group-hover/file:text-white transition-colors">
+                                                    {getFileIcon(f.name)}
+                                                </div>
+                                                <div className="flex flex-col truncate text-left">
+                                                    <span className="text-[11px] font-black truncate opacity-80 uppercase tracking-widest">{f.name}</span>
+                                                    <span className="text-[8px] opacity-40 font-bold">{(f.size / 1024).toFixed(1)} KB</span>
+                                                </div>
                                             </div>
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); setSelectedFiles(prev => prev.filter((_, idx) => idx !== i)); }}
-                                                className="p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-colors"
+                                                className="p-2 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-colors opacity-0 group-hover/file:opacity-100"
                                             >
-                                                <X className="w-3.5 h-3.5" />
+                                                <X className="w-4 h-4" />
                                             </button>
-                                        </div>
+                                        </motion.div>
                                     ))}
                                 </div>
                                 <button 

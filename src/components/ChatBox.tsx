@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, UserPlus, X, MessageSquare, User, Globe, StickyNote } from 'lucide-react';
+import { Send, UserPlus, X, MessageSquare, User, Globe, StickyNote, Paperclip } from 'lucide-react';
 import { ChatService } from '../services/ChatService';
 import type { ChatMessage } from '../services/ChatService';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,6 +20,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
   const [searchText, setSearchText] = useState('');
   const [messageText, setMessageText] = useState('');
   const [searchResults, setSearchResults] = useState<{id: string, name: string, type: 'family' | 'person' | 'global'}[]>([]);
+  const [isAttachActive, setIsAttachActive] = useState(true);
   
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isMessageFocused, setIsMessageFocused] = useState(false);
@@ -29,16 +30,13 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
 
   const chatService = ChatService.getInstance();
 
-  // Mode is derived: if participants are selected, it's a DM. Otherwise, it's a Note.
   const isDM = participants.length > 0;
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
     if (!isDM && attachedArtifact) {
-        // NOTE MODE: Subscribe to artifact specific notes
         unsub = chatService.subscribeToArtifactMessages(attachedArtifact.id, (msgs) => onMessageUpdate?.(msgs), currentFamily.slug);
     } else if (isDM) {
-      // DM MODE: Subscribe to the conversation
       const pIds = chatService.normalizeParticipantIds([currentFamily.slug, currentUser.id, ...participants.map(p => p.id)]);
       const chatId = pIds.join('--');
       unsub = chatService.subscribeToMessages(chatId, (msgs) => onMessageUpdate?.(msgs));
@@ -89,31 +87,30 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
   const handleSend = async () => {
     if (!messageText.trim()) return;
 
+    const attachment = isAttachActive ? attachedArtifact : undefined;
+
     if (isDM) {
-        // 1. Send DM to participants
         const dmIds = [currentFamily.slug, currentUser.id, ...participants.map(p => p.id)];
         await chatService.sendMessage(
             dmIds,
             currentFamily.slug,
             currentUser.name, 
             messageText,
-            attachedArtifact, // Always include attachment if present in DM
+            attachment,
             currentUser.id
         );
 
-        // 2. If an artifact is attached, auto-post as a PUBLIC NOTE as well
-        if (attachedArtifact) {
+        if (attachment) {
             await chatService.sendMessage(
-                [currentFamily.slug, currentUser.id], // Standard Note path
+                [currentFamily.slug, currentUser.id],
                 currentFamily.slug,
                 currentUser.name,
                 messageText,
-                attachedArtifact,
+                attachment,
                 currentUser.id
             );
         }
     } else {
-        // NOTE MODE: Send a public note attached to current artifact
         if (!attachedArtifact) return;
         await chatService.sendMessage(
             [currentFamily.slug, currentUser.id],
@@ -129,95 +126,110 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
   };
 
   return (
-    <div className="flex flex-col pointer-events-auto font-sans w-full max-w-5xl">
-      <div className="flex items-center gap-10 pt-6 pb-4 px-10 bg-white/5 backdrop-blur-3xl border border-white/5 rounded-full shadow-2xl relative overflow-hidden group">
+    <div className="flex flex-col pointer-events-auto font-sans w-full max-w-5xl group/box">
+      <div className="flex items-center gap-6 p-2 bg-black/40 backdrop-blur-3xl border border-white/10 rounded-full shadow-[0_30px_60px_rgba(0,0,0,0.5)] relative overflow-hidden transition-all duration-500 hover:bg-black/60 focus-within:bg-black/80">
         <div className="absolute inset-0 bg-noise opacity-[0.05] pointer-events-none"></div>
         
-        {/* Visual Indicator of Mode */}
-        <div className="flex flex-none items-center justify-center">
-            <div className={`transition-all duration-500 p-3 rounded-full ${isDM ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+        {/* ICON / MODE */}
+        <div className="flex-none flex items-center justify-center pl-2">
+            <div className={`transition-all duration-700 p-3.5 rounded-full shadow-2xl ${isDM ? 'bg-blue-600 text-white animate-pulse' : 'bg-white/5 text-emerald-400'}`}>
                 {isDM ? <MessageSquare className="w-5 h-5" /> : <StickyNote className="w-5 h-5" />}
             </div>
         </div>
 
-        <div className="h-8 w-px bg-white/10" />
+        {/* INPUT HUB */}
+        <div className="flex-1 flex flex-col min-w-0 pr-2">
+            <div className="flex items-center gap-3 h-6 mb-1">
+                {/* Participant Adder */}
+                <div className="relative flex items-center">
+                    <div 
+                        className={`flex items-center gap-2 px-3 py-1 rounded-full transition-all cursor-pointer border ${isSearchFocused || participants.length > 0 ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5'}`}
+                        onClick={() => searchInputRef.current?.focus()}
+                    >
+                        <UserPlus className={`w-3.5 h-3.5 transition-colors ${participants.length > 0 ? 'text-blue-400' : 'text-white/20'}`} />
+                        <input 
+                            ref={searchInputRef}
+                            type="text" 
+                            placeholder={participants.length === 0 ? "ADD SUBJECT..." : ""}
+                            className="bg-transparent border-none text-[9px] font-black uppercase tracking-[0.2em] focus:ring-0 p-0 w-20 text-white placeholder:text-white/10"
+                            value={searchText}
+                            onFocus={() => setIsSearchFocused(true)}
+                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                            onChange={(e) => handleSearch(e.target.value)}
+                        />
+                    </div>
 
-        <div className="flex-1 flex items-center gap-8 text-gray-900 dark:text-white">
-            {/* UNIFIED INPUT AREA */}
-            <div className="flex-1 flex flex-col gap-1">
-                <div className="flex items-center gap-4">
-                    {/* Participant Adder */}
-                    <div className="relative flex items-center">
-                        <div 
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all cursor-pointer ${isSearchFocused || participants.length > 0 ? 'bg-white/10 border-white/20' : 'bg-transparent border-white/5 hover:border-white/20'}`}
-                            onClick={() => searchInputRef.current?.focus()}
-                        >
-                            <UserPlus className={`w-3.5 h-3.5 transition-colors ${participants.length > 0 ? 'text-blue-400' : 'text-white/20'}`} />
-                            <input 
-                                ref={searchInputRef}
-                                type="text" 
-                                placeholder={participants.length === 0 ? "TO..." : ""}
-                                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest focus:ring-0 p-0 w-16 text-white placeholder:text-white/10"
-                                value={searchText}
-                                onFocus={() => setIsSearchFocused(true)}
-                                onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                                onChange={(e) => handleSearch(e.target.value)}
-                            />
-                        </div>
-
-                        {/* Search Results Dropup */}
-                        <AnimatePresence>
-                            {searchResults.length > 0 && (
-                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute z-[110] left-0 bottom-full mb-4 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-white/10 rounded-sm shadow-2xl overflow-hidden min-w-[240px]">
-                                {searchResults.map(r => (
-                                <div key={r.id} className="p-4 hover:bg-blue-500/5 dark:hover:bg-blue-500/10 cursor-pointer border-b border-gray-100 dark:border-white/5 last:border-0 flex items-center justify-between group/item transition-colors" onClick={() => addParticipant(r)}>
-                                    <div className="flex items-center gap-3 text-gray-900 dark:text-white">
+                    <AnimatePresence>
+                        {searchResults.length > 0 && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute z-[110] left-0 bottom-full mb-6 bg-[#0a0a0a] backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden min-w-[280px]">
+                            <div className="px-4 py-3 border-b border-white/5 bg-white/5">
+                                <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/40">Select Transmission Origin</span>
+                            </div>
+                            {searchResults.map(r => (
+                            <div key={r.id} className="p-4 hover:bg-blue-600/20 cursor-pointer border-b border-white/5 last:border-0 flex items-center justify-between group/item transition-colors" onClick={() => addParticipant(r)}>
+                                <div className="flex items-center gap-3 text-white">
+                                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
                                         {r.type === 'family' ? <MessageSquare className="w-3.5 h-3.5 opacity-40" /> : r.type === 'global' ? <Globe className="w-3.5 h-3.5 text-blue-400" /> : <User className="w-3.5 h-3.5 opacity-40" />}
-                                        <span className="text-[10px] font-black uppercase tracking-widest">{r.name}</span>
                                     </div>
-                                    <UserPlus className="w-3.5 h-3.5 text-gray-300 dark:text-white/10 group-hover:text-blue-400 transition-colors" />
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black uppercase tracking-widest">{r.name}</span>
+                                        <span className="text-[7px] opacity-40 uppercase tracking-tighter">{r.type}</span>
+                                    </div>
                                 </div>
-                                ))}
-                            </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-
-                    {/* Participants List */}
-                    <div className="flex gap-1.5 overflow-x-auto no-scrollbar max-w-[300px]">
-                        {participants.map(p => (
-                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} key={p.id} className="flex-none px-2.5 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full flex items-center gap-2 group/p">
-                                <span className="text-[8px] font-black uppercase tracking-widest text-blue-400">{p.name}</span>
-                                <X className="w-2.5 h-2.5 text-blue-400/40 hover:text-blue-400 cursor-pointer" onClick={() => removeParticipant(p.id)} />
-                            </motion.div>
-                        ))}
-                    </div>
+                                <UserPlus className="w-3.5 h-3.5 text-white/10 group-hover/item:text-blue-400 transition-colors" />
+                            </div>
+                            ))}
+                        </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
 
-                {/* Message Input */}
-                <div className="flex-1 relative flex items-center cursor-text mt-1" onClick={() => messageInputRef.current?.focus()}>
-                    {!isMessageFocused && messageText.length === 0 && (
-                        <span className="text-[12px] font-black uppercase tracking-[0.4em] text-white/20 absolute left-0 pointer-events-none transition-opacity duration-200">
-                            {isDM ? 'ENCRYPTED TRANSMISSION...' : (attachedArtifact ? `ANNOTATING ${attachedArtifact.name.toUpperCase()}...` : 'SELECT ARTIFACT TO NOTE...')}
-                        </span>
-                    )}
-                    <input 
-                        ref={messageInputRef}
-                        type="text" 
-                        className="flex-1 bg-transparent border-none text-[12px] font-black uppercase tracking-widest focus:ring-0 p-0 text-white placeholder:text-white/10"
-                        value={messageText}
-                        onFocus={() => setIsMessageFocused(true)}
-                        onBlur={() => setIsMessageFocused(false)}
-                        onChange={(e) => setMessageText(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    />
+                {/* Participant Stack */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar max-w-[400px]">
+                    {participants.map(p => (
+                        <motion.div initial={{ scale: 0, x: -10 }} animate={{ scale: 1, x: 0 }} key={p.id} className="flex-none px-2.5 py-0.5 bg-blue-600 border border-blue-400/50 rounded-full flex items-center gap-2 group/p shadow-lg shadow-blue-600/20">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-white">{p.name}</span>
+                            <X className="w-2.5 h-2.5 text-white/60 hover:text-white cursor-pointer" onClick={() => removeParticipant(p.id)} />
+                        </motion.div>
+                    ))}
                 </div>
             </div>
 
-            {/* SEND BUTTON */}
+            {/* MESSAGE INPUT */}
+            <div className="flex-1 relative flex items-center cursor-text py-1" onClick={() => messageInputRef.current?.focus()}>
+                {!isMessageFocused && messageText.length === 0 && (
+                    <span className="text-[13px] font-black uppercase tracking-[0.5em] text-white/10 absolute left-0 pointer-events-none transition-opacity duration-500 italic">
+                        {isDM ? 'Transmitting Data...' : (attachedArtifact ? `Note: ${attachedArtifact.name.toUpperCase()}` : 'Select Artifact...')}
+                    </span>
+                )}
+                <input 
+                    ref={messageInputRef}
+                    type="text" 
+                    className="flex-1 bg-transparent border-none text-[13px] font-bold tracking-widest focus:ring-0 p-0 text-white placeholder:text-white/5"
+                    value={messageText}
+                    onFocus={() => setIsMessageFocused(true)}
+                    onBlur={() => setIsMessageFocused(false)}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                />
+            </div>
+        </div>
+
+        {/* ACTIONS */}
+        <div className="flex items-center gap-2 pr-2">
+            {/* Attach Toggle */}
+            <button 
+                onClick={() => setIsAttachActive(!isAttachActive)}
+                className={`p-3 rounded-full transition-all duration-500 border ${isAttachActive ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-white/5 border-transparent text-white/20 hover:text-white/40'}`}
+                title={attachedArtifact ? `Link ${attachedArtifact.name}` : 'No artifact selected'}
+            >
+                <Paperclip className={`w-4 h-4 transition-transform ${isAttachActive ? 'rotate-0 scale-110' : '-rotate-45 scale-90'}`} />
+            </button>
+
+            {/* Send */}
             <button 
                 onClick={handleSend} 
-                className={`transition-all p-4 rounded-full shadow-2xl active:scale-90 ${messageText.trim() ? 'bg-white text-black' : 'bg-white/5 text-white/10 cursor-not-allowed'}`}
+                className={`transition-all p-4 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.5)] active:scale-90 ${messageText.trim() ? 'bg-white text-black hover:scale-105' : 'bg-white/5 text-white/10 cursor-not-allowed'}`}
             >
                 <Send className="w-5 h-5" />
             </button>
