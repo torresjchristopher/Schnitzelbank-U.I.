@@ -395,17 +395,25 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
   };
 
   const transferSelected = async (targetPersonId: string) => {
-    if (selectedIds.size === 0) return;
+    if (selectedIds.size === 0 || !targetPersonId) return;
+    
+    // UI Feedback: temporarily disable to prevent double trigger
+    const currentIds = Array.from(selectedIds);
+    setSelectedIds(new Set()); 
+
     try {
+        console.log(`[TRANSFER] Moving ${currentIds.length} artifacts to subject ${targetPersonId}`);
         await PersistenceService.getInstance().transferArtifacts(
-            Array.from(selectedIds),
+            currentIds,
             targetPersonId,
             tree.protocolKey || 'MURRAY_LEGACY_2026',
             tree.memories
         );
-        setSelectedIds(new Set());
+        console.log(`[TRANSFER] Movement protocol completed successfully.`);
     } catch (e) {
         console.error("Transfer failed", e);
+        // Fallback: restore selection if failed
+        setSelectedIds(new Set(currentIds));
     }
   };
 
@@ -499,11 +507,11 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
               <button onClick={() => navigate(`${slugPrefix}/messages`)} className="p-3 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10 shadow-xl group" title="Messages">
                 <MessageCircle className="w-4 h-4 text-gray-500 dark:text-white/40 group-hover:text-black dark:group-hover:text-white" />
               </button>
-              <button onClick={() => navigate(`${slugPrefix}/upload`)} className="p-3 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10 shadow-xl group" title="Upload">
-                <Upload className="w-4 h-4 text-gray-500 dark:text-white/40 group-hover:text-black dark:group-hover:text-white" />
-              </button>
               <button onClick={() => navigate(`${slugPrefix}/biography`)} className="p-3 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10 shadow-xl group" title="Biographies">
                 <User className="w-4 h-4 text-gray-500 dark:text-white/40 group-hover:text-black dark:group-hover:text-white" />
+              </button>
+              <button onClick={() => navigate(`${slugPrefix}/upload`)} className="p-3 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full transition-all hover:bg-black/10 dark:hover:bg-white/10 shadow-xl group" title="Upload">
+                <Upload className="w-4 h-4 text-gray-500 dark:text-white/40 group-hover:text-black dark:group-hover:text-white" />
               </button>
               <button onClick={() => navigate(`${slugPrefix}/export`)} className="p-3 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-2xl hover:opacity-80 transition-all border border-transparent dark:border-white/5" title="Export">
                 <Download className="w-4 h-4" />
