@@ -126,13 +126,23 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
   };
 
   return (
-    <div className="flex flex-col pointer-events-auto font-sans w-full max-w-5xl group/box">
+    <div className="flex flex-col pointer-events-auto font-sans w-full max-w-5xl group/box px-4">
       <div className="flex items-center gap-6 p-3 bg-black/40 backdrop-blur-3xl border border-white/10 rounded-full shadow-[0_30px_60px_rgba(0,0,0,0.5)] relative overflow-hidden transition-all duration-500 hover:bg-black/60 focus-within:bg-black/80">
         <div className="absolute inset-0 bg-noise opacity-[0.05] pointer-events-none"></div>
         
         {/* INPUT HUB */}
         <div className="flex-1 flex flex-col min-w-0 pl-4 pr-2">
             <div className="flex items-center gap-3 h-6 mb-1">
+                {/* Mode Context */}
+                <div className={`flex items-center gap-2 px-3 py-1 rounded-full border transition-all ${isDM ? 'bg-blue-500/10 border-blue-500/30' : 'bg-emerald-500/10 border-emerald-500/30'}`}>
+                    {isDM ? <MessageSquare className="w-3 h-3 text-blue-400" /> : <Paperclip className="w-3 h-3 text-emerald-400" />}
+                    <span className={`text-[8px] font-black uppercase tracking-widest ${isDM ? 'text-blue-400' : 'text-emerald-400'}`}>
+                        {isDM ? 'Transmission' : 'Annotation'}
+                    </span>
+                </div>
+
+                <div className="h-4 w-px bg-white/10" />
+
                 {/* Participant Adder */}
                 <div className="relative flex items-center">
                     <div 
@@ -143,8 +153,8 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
                         <input 
                             ref={searchInputRef}
                             type="text" 
-                            placeholder={participants.length === 0 ? "ADD SUBJECT..." : ""}
-                            className="bg-transparent border-none text-[9px] font-black uppercase tracking-[0.2em] focus:ring-0 p-0 w-20 text-white placeholder:text-white/10"
+                            placeholder={participants.length === 0 ? "ADD RECIPIENT..." : ""}
+                            className="bg-transparent border-none text-[9px] font-black uppercase tracking-[0.2em] focus:ring-0 p-0 w-24 text-white placeholder:text-white/10"
                             value={searchText}
                             onFocus={() => setIsSearchFocused(true)}
                             onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
@@ -156,7 +166,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
                         {searchResults.length > 0 && (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute z-[110] left-0 bottom-full mb-6 bg-[#0a0a0a] backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden min-w-[280px]">
                             <div className="px-4 py-3 border-b border-white/5 bg-white/5">
-                                <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/40">Select Transmission Origin</span>
+                                <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/40">Select Identity</span>
                             </div>
                             {searchResults.map(r => (
                             <div key={r.id} className="p-4 hover:bg-blue-600/20 cursor-pointer border-b border-white/5 last:border-0 flex items-center justify-between group/item transition-colors" onClick={() => addParticipant(r)}>
@@ -192,7 +202,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
             <div className="flex-1 relative flex items-center cursor-text py-1" onClick={() => messageInputRef.current?.focus()}>
                 {!isMessageFocused && messageText.length === 0 && (
                     <span className="text-[13px] font-black uppercase tracking-[0.5em] text-white/10 absolute left-0 pointer-events-none transition-opacity duration-500 italic">
-                        {isDM ? 'Transmitting Data...' : (attachedArtifact ? `Note: ${attachedArtifact.name.toUpperCase()}` : 'Select Artifact...')}
+                        {isDM ? 'TYPE MESSAGE...' : (attachedArtifact ? `ANNOTATING ${attachedArtifact.name.toUpperCase()}...` : 'SELECT ARTIFACT...')}
                     </span>
                 )}
                 <input 

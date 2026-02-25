@@ -518,14 +518,15 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                     <div className="flex items-center gap-2">
                         <span className="text-[8px] font-black uppercase tracking-tighter text-gray-400">Transfer to:</span>
                         <select 
+                            value=""
                             onChange={(e) => {
                                 if (e.target.value) {
                                     transferSelected(e.target.value);
                                 }
                             }}
-                            className="bg-transparent border-none text-[9px] font-black uppercase tracking-widest focus:ring-0 p-0 pr-6"
+                            className="bg-transparent border-none text-[9px] font-black uppercase tracking-widest focus:ring-0 p-0 pr-6 cursor-pointer"
                         >
-                            <option value="">SELECT SUBJECT...</option>
+                            <option value="" disabled>SELECT SUBJECT...</option>
                             {tree?.people?.map(p => <option key={p.id} value={p.id}>{p.name.toUpperCase()}</option>)}
                         </select>
                     </div>
