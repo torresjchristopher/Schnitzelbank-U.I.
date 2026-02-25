@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Lock, Database, Sun, Moon, CheckSquare, Square, AlignLeft, MessageCircle, StickyNote, Shuffle, Star, User, Upload, RotateCw, Trash2, FilePlus, Loader2, X, Play, Users, Paperclip } from 'lucide-react';
+import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Lock, Database, Sun, Moon, CheckSquare, Square, AlignLeft, MessageCircle, StickyNote, Shuffle, Star, User, Upload, RotateCw, Trash2, FilePlus, Loader2, X, Play, Users, Paperclip, ShieldCheck } from 'lucide-react';
 import type { MemoryTree, Memory, Person } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PersistenceService } from '../services/PersistenceService';
@@ -59,7 +59,8 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
   // Stable fallback year for purity
   const currentYear = useMemo(() => new Date().getUTCFullYear(), []);
 
-  const [isNotesFilterActive, setIsNotesFilterActive] = useState(false);  const [notedPairs, setNotedPairs] = useState<{memory: Memory, note: ChatMessage}[]>([]);
+  const [isNotesFilterActive, setIsNotesFilterActive] = useState(false);
+  const [notedPairs, setNotedPairs] = useState<{memory: Memory, note: ChatMessage}[]>([]);
 
   useEffect(() => {
     if (isNotesFilterActive) {
@@ -79,8 +80,6 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                 }
             });
             setNotedPairs(pairs);
-            // We don't force setCurrentIndex(0) here so that if a user is looking at a note and a new one arrives,
-            // they aren't yanked back to the start.
         });
         return unsub;
     } else {
@@ -138,9 +137,6 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
     try {
       if (isNotesFilterActive) {
           if (notedPairs.length > 0) return notedPairs.map(p => p.memory);
-          
-          // SAFETY NET: If we are in Note mode and found nothing, surface artifacts with ANY metadata
-          console.log("Note Mode Safety Net Triggered: Unconditional Fallback (Source of Truth)");
           return localMemories.slice(0, 50);
       }
 
@@ -149,8 +145,6 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
       
       const results = localMemories.filter(m => {
         if (!m?.photoUrl && !m?.url) return false;
-        
-        // Basic search/person filtering
         const personIds = Array.isArray(m.tags?.personIds) ? m.tags.personIds.map(String) : [];
         if (fp && fp !== '' && fp !== 'FAMILY_ROOT' && !personIds.includes(String(fp))) return false;
         if (!q) return true;
@@ -165,22 +159,17 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
     } catch (e) { return []; }
   }, [localMemories, filterPerson, searchQuery, tree?.people, isNotesFilterActive, notedPairs]);
 
-  // Dedicated Note Mode Auto-Cycle (Moved here to fix scoping)
   useEffect(() => {
     if (!isNotesFilterActive || filteredMemories.length <= 1 || isChatInputActive) return;
-    
     const interval = setInterval(() => {
         setCurrentIndex(prev => {
             const next = (prev + 1) % filteredMemories.length;
-            // If we wrap back to the beginning, it means we've seen all notes in the stack
             if (next === 0) {
-                console.log("[NOTES V4] Stack expired, exiting Note Mode.");
                 setIsNotesFilterActive(false);
             }
             return next;
         });
-    }, 12000); // 12 seconds per note
-    
+    }, 12000);
     return () => clearInterval(interval);
   }, [isNotesFilterActive, filteredMemories.length, isChatInputActive]);
 
@@ -241,22 +230,17 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
     const handleKeys = (e: KeyboardEvent) => {
       if (editingField) return;
       if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
-      
-      // Arrow Key Rearranging Logic (Grid Mode + Single Selection)
       if (viewMode !== 'theatre' && selectedIds.size === 1 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault();
         const selectedId = Array.from(selectedIds)[0];
         const currentIdx = orderedMemories.findIndex(m => m.id === selectedId);
         if (currentIdx === -1) return;
-
         let targetIdx = -1;
         const cols = viewMode === 'grid-2' ? 2 : viewMode === 'grid-4' ? 4 : viewMode === 'grid-8' ? 8 : viewMode === 'grid-12' ? 12 : 4;
-
         if (e.key === 'ArrowLeft') targetIdx = currentIdx - 1;
         else if (e.key === 'ArrowRight') targetIdx = currentIdx + 1;
         else if (e.key === 'ArrowUp') targetIdx = currentIdx - cols;
         else if (e.key === 'ArrowDown') targetIdx = currentIdx + cols;
-
         if (targetIdx >= 0 && targetIdx < orderedMemories.length) {
             const newOrdered = [...orderedMemories];
             const [movedItem] = newOrdered.splice(currentIdx, 1);
@@ -266,7 +250,6 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
         }
         return;
       }
-
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
         if (viewMode === 'theatre') {
@@ -396,23 +379,17 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
 
   const transferSelected = async (targetPersonId: string) => {
     if (selectedIds.size === 0 || !targetPersonId) return;
-    
-    // UI Feedback: temporarily disable to prevent double trigger
     const currentIds = Array.from(selectedIds);
     setSelectedIds(new Set()); 
-
     try {
-        console.log(`[TRANSFER] Moving ${currentIds.length} artifacts to subject ${targetPersonId}`);
         await PersistenceService.getInstance().transferArtifacts(
             currentIds,
             targetPersonId,
             tree.protocolKey || 'MURRAY_LEGACY_2026',
             tree.memories
         );
-        console.log(`[TRANSFER] Movement protocol completed successfully.`);
     } catch (e) {
         console.error("Transfer failed", e);
-        // Fallback: restore selection if failed
         setSelectedIds(new Set(currentIds));
     }
   };
@@ -458,7 +435,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
       
       <div className="relative z-10 w-full h-screen flex flex-col">
         <motion.header 
-          animate={{ y: showUi ? 0 : -100, opacity: showUi ? 1 : 0 }} 
+          animate={{ y: (showUi || viewMode !== 'theatre') ? 0 : -100, opacity: (showUi || viewMode !== 'theatre') ? 1 : 0 }} 
           className="fixed top-0 left-0 right-0 z-50 px-10 py-4 flex justify-between items-start pointer-events-none"
         >
           {/* LEFT: Branding Area */}
@@ -491,7 +468,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
             </div>
           </div>
           
-          {/* CENTER: Search Bar (Absolutely centered) */}
+          {/* CENTER: Search Bar */}
           <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-auto flex items-center gap-6 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-gray-200 dark:border-white/5 rounded-full px-6 py-2 shadow-2xl transition-colors">
             <Search className="w-3 h-3 text-gray-400 dark:text-white/20" />
             <input type="text" placeholder="SEARCH..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentIndex(0); }} className="w-32 md:w-64 bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white focus:ring-0 placeholder:text-gray-400 dark:placeholder:text-white/10 p-0" />
@@ -502,7 +479,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
             </select>
           </div>
 
-          {/* RIGHT: Menu Row */}
+          {/* RIGHT: Header Circular Menu */}
           <div className="pointer-events-auto flex items-center gap-3 p-2">
               {viewMode !== 'theatre' && (
                 <button onClick={cycleGridMode} className="p-3 bg-emerald-500 text-black rounded-full transition-all hover:bg-emerald-400 shadow-xl group" title="Return to Theatre">
@@ -599,56 +576,59 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
               <AnimatePresence>
                 {showUi && (
                   <div className="absolute inset-0 z-30 pointer-events-none">
-                    {/* NOTE MODE PROMINENT DISPLAY */}
-                    <AnimatePresence>
-                        {isNotesFilterActive && notedPairs[currentIndex] && (
-                            <motion.div 
-                                initial={{ opacity: 0, scale: 0.9, x: -50 }}
-                                animate={{ opacity: 1, scale: 1, x: 0 }}
-                                exit={{ opacity: 0, scale: 0.9, x: -50 }}
-                                className="absolute left-10 top-1/2 -translate-y-1/2 w-[450px] pointer-events-auto"
-                            >
-                                <div className="bg-black/60 backdrop-blur-3xl p-0 shadow-[0_50px_100px_rgba(0,0,0,0.8)] border border-white/10 rounded-sm overflow-hidden">
-                                    <div className="bg-blue-600 px-6 py-2 flex justify-between items-center">
-                                        <div className="flex items-center gap-3">
-                                            <StickyNote className="w-3 h-3 text-white" />
-                                            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white">Transmission Log</span>
-                                        </div>
-                                        <span className="text-[8px] font-black text-white/60 tracking-widest">{notedPairs[currentIndex].note.timestamp ? new Date(notedPairs[currentIndex].note.timestamp.seconds * 1000).toLocaleTimeString() : 'NOW'}</span>
-                                    </div>
-                                    
-                                    <div className="p-10 space-y-8">
-                                        <div className="space-y-4">
-                                            <div className="flex items-center gap-2 text-blue-400">
-                                                <div className="w-1 h-1 rounded-full bg-current animate-pulse"></div>
-                                                <span className="text-[8px] font-black uppercase tracking-[0.2em] italic">Origin: {notedPairs[currentIndex].note.senderName}</span>
-                                            </div>
-                                            <p className="text-3xl font-serif italic leading-tight text-white selection:bg-blue-500/30">
-                                                <Typewriter text={notedPairs[currentIndex].note.text} />
-                                                <span className="w-2 h-6 bg-blue-500 inline-block ml-2 animate-pulse align-middle" />
-                                            </p>
-                                        </div>
+                    {/* TRANSMISSION OVERLAYS - Strictly controlled by Notes Toggle */}
+                    {isNotesFilterActive && (
+                        <>
+                            {/* MESSAGE STREAM */}
+                            <div className="absolute left-10 top-1/2 -translate-y-1/2 w-80 pointer-events-auto z-40">
+                                <MessageStream messages={chatMessages} currentUser={currentUser} onSelectArtifact={handleSelectArtifactFromChat} />
+                            </div>
 
-                                        <div className="pt-8 border-t border-white/5 flex items-center justify-between">
-                                            <div className="flex flex-col">
-                                                <span className="text-[7px] font-black uppercase tracking-widest text-white/30">Registry Identity</span>
-                                                <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/60 mt-1">{currentMemory.name.replace(/\.[^.]+$/, '')}</h3>
+                            {/* ICONIC TRANSMISSION LOG CARD */}
+                            <AnimatePresence>
+                                {notedPairs[currentIndex] && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, scale: 0.9, x: -50 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9, x: -50 }}
+                                        className="absolute left-[400px] top-1/2 -translate-y-1/2 w-[450px] pointer-events-auto z-50"
+                                    >
+                                        <div className="bg-black/60 backdrop-blur-3xl p-0 shadow-[0_50px_100px_rgba(0,0,0,0.8)] border border-white/10 rounded-sm overflow-hidden">
+                                            <div className="bg-blue-600 px-6 py-2 flex justify-between items-center">
+                                                <div className="flex items-center gap-3">
+                                                    <StickyNote className="w-3 h-3 text-white" />
+                                                    <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white">Transmission Log</span>
+                                                </div>
+                                                <span className="text-[8px] font-black text-white/60 tracking-widest">{notedPairs[currentIndex].note.timestamp ? new Date(notedPairs[currentIndex].note.timestamp.seconds * 1000).toLocaleTimeString() : 'NOW'}</span>
                                             </div>
-                                            <div className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center">
-                                                <Paperclip className="w-4 h-4 text-white/20" />
+                                            
+                                            <div className="p-10 space-y-8">
+                                                <div className="space-y-4">
+                                                    <div className="flex items-center gap-2 text-blue-400">
+                                                        <div className="w-1 h-1 rounded-full bg-current animate-pulse"></div>
+                                                        <span className="text-[8px] font-black uppercase tracking-[0.2em] italic">Origin: {notedPairs[currentIndex].note.senderName}</span>
+                                                    </div>
+                                                    <p className="text-3xl font-serif italic leading-tight text-white selection:bg-blue-500/30">
+                                                        <Typewriter text={notedPairs[currentIndex].note.text} />
+                                                        <span className="w-2 h-6 bg-blue-500 inline-block ml-2 animate-pulse align-middle" />
+                                                    </p>
+                                                </div>
+
+                                                <div className="pt-8 border-t border-white/5 flex items-center justify-between">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[7px] font-black uppercase tracking-widest text-white/30">Registry Identity</span>
+                                                        <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/60 mt-1">{currentMemory.name.replace(/\.[^.]+$/, '')}</h3>
+                                                    </div>
+                                                    <div className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center">
+                                                        <Paperclip className="w-4 h-4 text-white/20" />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    {/* MESSAGE STREAM - LEFT OF MEDIA (Hidden in Note Mode) */}
-                    {viewMode === 'theatre' && !isNotesFilterActive && (
-                        <div className="absolute left-10 top-1/2 -translate-y-1/2 w-80 pointer-events-auto">
-                            <MessageStream messages={chatMessages} currentUser={currentUser} onSelectArtifact={handleSelectArtifactFromChat} />
-                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </>
                     )}
 
                     {/* CHAT HUD - CENTERED BOTTOM */}
@@ -666,26 +646,26 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                         </div>
                     )}
 
-                    {/* METADATA CARD - ICONIC REDESIGN */}
+                    {/* METADATA CARD - ICONIC BADGE DESIGN */}
                     {!isVideoPlaying && showDescription && (
                         <motion.div 
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="absolute bottom-36 left-10 pointer-events-auto flex flex-col gap-0 shadow-[0_50px_100px_rgba(0,0,0,0.8)] rounded-sm overflow-hidden"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="absolute bottom-36 left-10 pointer-events-auto flex flex-col items-start gap-0 z-30"
                         >
-                          <div className="bg-emerald-500 px-4 py-1 flex justify-between items-center group/edit cursor-pointer" onDoubleClick={(e) => { e.stopPropagation(); startEditing(currentMemory.id, 'year', currentMemory.date); }}>
-                            <span className="text-[8px] font-black text-black uppercase tracking-[0.4em]">Archival Entry</span>
-                            <div className="text-[10px] font-black text-black uppercase tracking-widest">
-                                {editingField?.id === currentMemory.id && editingField.field === 'year' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-black/10 border-none text-black w-12 outline-none p-0" /> : <span>{new Date(currentMemory.date || currentYear).getUTCFullYear()}</span>}
-                            </div>
+                          <div className="bg-emerald-500 px-4 py-1.5 rounded-t-sm shadow-xl flex items-center gap-3 cursor-pointer group/edit" onDoubleClick={(e) => { e.stopPropagation(); startEditing(currentMemory.id, 'year', currentMemory.date); }}>
+                            <div className="w-1.5 h-1.5 rounded-full bg-black animate-pulse"></div>
+                            <span className="text-[10px] font-black text-black uppercase tracking-[0.3em]">
+                                {editingField?.id === currentMemory.id && editingField.field === 'year' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-black/10 border-none text-black w-12 outline-none p-0 text-[10px] font-black" /> : <span>{new Date(currentMemory.date || currentYear).getUTCFullYear()}</span>}
+                            </span>
                           </div>
-                          <div className="bg-black/80 backdrop-blur-2xl px-6 py-5 border-l-4 border-emerald-500 group/name cursor-pointer" onDoubleClick={(e) => { e.stopPropagation(); startEditing(currentMemory.id, 'name', currentMemory.name); }}>
-                            <div className="text-2xl font-serif font-black italic text-white tracking-tight leading-none">
-                                {editingField?.id === currentMemory.id && editingField.field === 'name' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-white/5 border-none text-white w-64 outline-none p-0" /> : <span>{currentMemory.name.replace(/\.[^.]+$/, '')}</span>}
+                          <div className="bg-black/90 backdrop-blur-3xl px-8 py-6 rounded-b-sm rounded-tr-sm border-l-4 border-emerald-500 shadow-[0_50px_100px_rgba(0,0,0,0.8)] flex flex-col gap-1 cursor-pointer group/name" onDoubleClick={(e) => { e.stopPropagation(); startEditing(currentMemory.id, 'name', currentMemory.name); }}>
+                            <div className="text-3xl font-serif font-black italic text-white tracking-tighter leading-none">
+                                {editingField?.id === currentMemory.id && editingField.field === 'name' ? <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} onKeyDown={e => e.key === 'Enter' && saveEdit()} className="bg-white/5 border-none text-white w-64 outline-none p-0 text-2xl font-serif font-black italic" /> : <span>{currentMemory.name.replace(/\.[^.]+$/, '')}</span>}
                             </div>
-                            <div className="flex items-center gap-2 mt-3 opacity-40">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                                <span className="text-[7px] font-black uppercase tracking-[0.3em] text-white">Verified Fragment</span>
+                            <div className="flex items-center gap-2 mt-4 opacity-30">
+                                <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                                <span className="text-[8px] font-black uppercase tracking-[0.4em] text-white">Verified Archival Fragment</span>
                             </div>
                           </div>
                         </motion.div>
@@ -693,9 +673,6 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                   </div>
                 )}
               </AnimatePresence>
-
-              {/* Note Side panel is now integrated into ChatBox toggle, so we remove the old Sidebar if it exists */}
-
 
               <button onClick={() => setCurrentIndex(p => (p - 1 + filteredMemories.length) % filteredMemories.length)} className={`absolute left-8 top-1/2 -translate-y-1/2 p-6 text-gray-300 dark:text-white/10 hover:text-gray-900 dark:hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronLeft className="w-16 h-16 stroke-[0.5]" /></button>
               <button onClick={() => setCurrentIndex(p => (p + 1) % filteredMemories.length)} className={`absolute right-8 top-1/2 -translate-y-1/2 p-6 text-gray-300 dark:text-white/10 hover:text-gray-900 dark:hover:text-white transition-opacity duration-500 ${showUi ? 'opacity-100' : 'opacity-0'} pointer-events-auto`}><ChevronRight className="w-16 h-16 stroke-[0.5]" /></button>
@@ -746,11 +723,10 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                         )}
                       </div>
                       
-                      {/* Favorite Star Icon - Top Left */}
+                      {/* Favorite Star Icon */}
                       <button 
                         onClick={(e) => { 
                             e.stopPropagation(); 
-                            // Prioritize the owner of the artifact if favoriting
                             const ownerId = m.tags?.personIds?.[0];
                             const targetPersonId = ownerId && ownerId !== 'FAMILY_ROOT' ? ownerId : (filterPerson || currentUser.id);
                             if (targetPersonId) {

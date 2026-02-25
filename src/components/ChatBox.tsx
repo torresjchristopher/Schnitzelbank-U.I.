@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, UserPlus, X, MessageSquare, User, Globe, StickyNote, Paperclip } from 'lucide-react';
+import { Send, UserPlus, X, MessageSquare, User, Globe, Paperclip } from 'lucide-react';
 import { ChatService } from '../services/ChatService';
 import type { ChatMessage } from '../services/ChatService';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -127,18 +127,11 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
 
   return (
     <div className="flex flex-col pointer-events-auto font-sans w-full max-w-5xl group/box">
-      <div className="flex items-center gap-6 p-2 bg-black/40 backdrop-blur-3xl border border-white/10 rounded-full shadow-[0_30px_60px_rgba(0,0,0,0.5)] relative overflow-hidden transition-all duration-500 hover:bg-black/60 focus-within:bg-black/80">
+      <div className="flex items-center gap-6 p-3 bg-black/40 backdrop-blur-3xl border border-white/10 rounded-full shadow-[0_30px_60px_rgba(0,0,0,0.5)] relative overflow-hidden transition-all duration-500 hover:bg-black/60 focus-within:bg-black/80">
         <div className="absolute inset-0 bg-noise opacity-[0.05] pointer-events-none"></div>
         
-        {/* ICON / MODE */}
-        <div className="flex-none flex items-center justify-center pl-2">
-            <div className={`transition-all duration-700 p-3.5 rounded-full shadow-2xl ${isDM ? 'bg-blue-600 text-white animate-pulse' : 'bg-white/5 text-emerald-400'}`}>
-                {isDM ? <MessageSquare className="w-5 h-5" /> : <StickyNote className="w-5 h-5" />}
-            </div>
-        </div>
-
         {/* INPUT HUB */}
-        <div className="flex-1 flex flex-col min-w-0 pr-2">
+        <div className="flex-1 flex flex-col min-w-0 pl-4 pr-2">
             <div className="flex items-center gap-3 h-6 mb-1">
                 {/* Participant Adder */}
                 <div className="relative flex items-center">
