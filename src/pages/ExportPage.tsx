@@ -52,16 +52,10 @@ export default function ExportPage({ tree, currentFamily }: ExportPageProps) {
     setProgress('Preparing archival build...');
     
     try {
-      const filter = all ? undefined : {
+      const finalFilter = all ? (filesOnly ? { filesOnly: true } : undefined) : {
         families: selections.filter(s => s.type === 'family').map(s => s.id),
         people: selections.filter(s => s.type === 'person').map(s => s.id),
-        filesOnly: filesOnly || !includeFiles // If specifically filesOnly OR if user toggled off files (assuming files meant non-images)
-      };
-
-      // If filesOnly is true, we want a special mode. Let's adjust filter logic.
-      const finalFilter = all ? (filesOnly ? { filesOnly: true } : undefined) : {
-          ...filter,
-          filesOnly: filesOnly || !includeFiles
+        filesOnly: filesOnly || !includeFiles
       };
 
       const blob = await ExportService.getInstance().exportAsZip(currentFamily, finalFilter as any);
@@ -69,7 +63,7 @@ export default function ExportPage({ tree, currentFamily }: ExportPageProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = all ? "Full_Schnitzelbank_Archive.zip" : "Custom_Family_Archive.zip";
+      link.download = all ? (filesOnly ? "Documents_Archive.zip" : "Full_Family_Archive.zip") : "Custom_Selection_Archive.zip";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -94,7 +88,7 @@ export default function ExportPage({ tree, currentFamily }: ExportPageProps) {
           <ArrowLeft className="w-5 h-5 text-gray-400 dark:text-white/40 group-hover:text-black dark:group-hover:text-white" />
         </button>
         <div className="text-center flex flex-col items-center">
-          <span className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.5em] mb-1 italic">Archival Export</span>
+          <span className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.5em] mb-1 italic">Archive Management</span>
           <h1 className="text-2xl font-bold tracking-tighter uppercase italic">Export Archive</h1>
         </div>
         <div className="w-12"></div>
@@ -106,10 +100,10 @@ export default function ExportPage({ tree, currentFamily }: ExportPageProps) {
         <section className="bg-emerald-500/5 border border-emerald-500/10 rounded-sm p-8 space-y-6">
             <div className="flex items-center gap-4 text-emerald-500 uppercase text-[10px] font-black tracking-[0.3em]">
                 <Database className="w-4 h-4" />
-                <span>Full Harvest</span>
+                <span>Complete Archive</span>
             </div>
             <p className="text-sm text-gray-500 dark:text-white/40 leading-relaxed font-serif italic">
-                Initialize a complete archival dump of your family website. Choose to export everything or strictly documents and records.
+                Initialize a complete archival export of your family archive. Choose to export everything or strictly documents and records.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button 
@@ -118,7 +112,7 @@ export default function ExportPage({ tree, currentFamily }: ExportPageProps) {
                     className="py-5 bg-emerald-500 text-white font-black text-[10px] uppercase tracking-[0.3em] hover:bg-emerald-400 transition-all active:scale-95 shadow-xl flex items-center justify-center gap-3"
                 >
                     {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                    EXPORT ENTIRE FAMILY
+                    EXPORT ALL
                 </button>
                 <button 
                     disabled={isExporting}
@@ -126,7 +120,7 @@ export default function ExportPage({ tree, currentFamily }: ExportPageProps) {
                     className="py-5 bg-black dark:bg-white text-white dark:text-black font-black text-[10px] uppercase tracking-[0.3em] hover:opacity-80 transition-all active:scale-95 shadow-xl flex items-center justify-center gap-3"
                 >
                     {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-                    EXPORT FILES ONLY
+                    EXPORT DOCUMENTS ONLY
                 </button>
             </div>
         </section>
@@ -143,7 +137,7 @@ export default function ExportPage({ tree, currentFamily }: ExportPageProps) {
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${includeFiles ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400'}`}
             >
                 <Paperclip className="w-3 h-3" />
-                <span className="text-[8px] font-black">{includeFiles ? 'INCLUDING FILES' : 'PICTURES ONLY'}</span>
+                <span className="text-[8px] font-black">{includeFiles ? 'INCLUDING DOCUMENTS' : 'PICTURES ONLY'}</span>
             </button>
           </div>
           
@@ -151,7 +145,7 @@ export default function ExportPage({ tree, currentFamily }: ExportPageProps) {
             <div className="relative">
                 <input 
                   type="text" 
-                  placeholder="SEARCH FAMILIES OR PEOPLE..." 
+                  placeholder="SEARCH MEMBERS OR COLLECTIONS..." 
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
                   className="w-full bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-sm px-6 py-5 text-sm tracking-widest focus:ring-0 focus:border-emerald-500/50 transition-all placeholder:text-gray-300 dark:placeholder:text-white/5 uppercase font-bold"
@@ -195,7 +189,7 @@ export default function ExportPage({ tree, currentFamily }: ExportPageProps) {
               }`}
             >
               {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              {isExporting ? 'COMPOSING...' : 'RELEASE SELECTION'}
+              {isExporting ? 'PREPARING...' : 'EXPORT SELECTION'}
             </button>
           </div>
         </section>

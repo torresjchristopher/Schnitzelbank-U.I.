@@ -58,9 +58,9 @@ export class PdfService {
             let imgHeight = img.height;
             const ratio = imgWidth / imgHeight;
             
-            const margin = 10;
-            const maxWidth = pageWidth - (margin * 2);
-            const maxHeight = pageHeight - (margin * 2);
+            // Seamless Experience: No Borders
+            const maxWidth = pageWidth;
+            const maxHeight = pageHeight;
 
             if (imgWidth > maxWidth) {
                 imgWidth = maxWidth;

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Lock, Database, Sun, Moon, CheckSquare, Square, AlignLeft, MessageCircle, StickyNote, Shuffle, Star, User, Upload, RotateCw, Trash2, FilePlus, Loader2, X, Play, Users, Paperclip, ShieldCheck } from 'lucide-react';
 import type { MemoryTree, Memory, Person } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Reorder } from 'framer-motion';
 import { PersistenceService } from '../services/PersistenceService';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../App';
@@ -539,7 +540,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
           {filteredMemories.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center p-10 text-center">
               {isSyncing ? (
-                <p className="text-gray-400 dark:text-white/40 font-serif italic mb-8 text-xl animate-pulse">Synchronizing Archive...</p>
+                <p className="text-gray-400 dark:text-white/40 font-serif italic mb-8 text-xl animate-pulse">Syncing Archive...</p>
               ) : (
                 <div className="max-w-md space-y-8">
                   <p className="text-gray-300 dark:text-white/20 font-serif italic text-xl">
@@ -598,7 +599,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                                             <div className="bg-blue-600 px-6 py-2 flex justify-between items-center">
                                                 <div className="flex items-center gap-3">
                                                     <StickyNote className="w-3 h-3 text-white" />
-                                                    <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white">Transmission Log</span>
+                                                    <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white">Message Log</span>
                                                 </div>
                                                 <span className="text-[8px] font-black text-white/60 tracking-widest">{notedPairs[currentIndex].note.timestamp ? new Date(notedPairs[currentIndex].note.timestamp.seconds * 1000).toLocaleTimeString() : 'NOW'}</span>
                                             </div>
@@ -617,7 +618,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
 
                                                 <div className="pt-8 border-t border-white/5 flex items-center justify-between">
                                                     <div className="flex flex-col">
-                                                        <span className="text-[7px] font-black uppercase tracking-widest text-white/30">Registry Identity</span>
+                                                        <span className="text-[7px] font-black uppercase tracking-widest text-white/30">Object Identity</span>
                                                         <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/60 mt-1">{currentMemory.name.replace(/\.[^.]+$/, '')}</h3>
                                                     </div>
                                                     <div className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center">
@@ -666,7 +667,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                             </div>
                             <div className="flex items-center gap-2 mt-4 opacity-30">
                                 <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                                <span className="text-[8px] font-black uppercase tracking-[0.4em] text-white">Verified Archival Fragment</span>
+                                <span className="text-[8px] font-black uppercase tracking-[0.4em] text-white">Archived Object</span>
                             </div>
                           </div>
                         </motion.div>
@@ -702,26 +703,37 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
             </motion.div>
           ) : (
             <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 overflow-y-auto p-10 pt-32 custom-scrollbar" onClick={() => setShowUi(false)}>
-              <div className={`grid ${getGridCols()} gap-6 max-w-[1800px] mx-auto pb-20`}>
+              <Reorder.Group 
+                axis="y" 
+                values={orderedMemories} 
+                onReorder={(newOrder) => {
+                    setOrderedMemories(newOrder);
+                    setCustomOrder(newOrder.map(m => m.id));
+                }}
+                className={`grid ${getGridCols()} gap-6 max-w-[1800px] mx-auto pb-20`}
+              >
                 {orderedMemories.map((m, idx) => (
-                  <motion.div 
+                  <Reorder.Item 
                     key={m.id} 
+                    value={m}
                     initial={{ opacity: 0, y: 20 }} 
                     animate={{ opacity: 1, y: 0 }} 
                     transition={{ delay: idx * 0.01 }} 
-                    className="relative aspect-square bg-gray-100 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-sm overflow-hidden cursor-pointer group hover:border-gray-400 dark:hover:border-white/20 transition-all shadow-xl"
+                    className="relative aspect-square bg-gray-100 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-sm overflow-hidden cursor-move group hover:border-gray-400 dark:hover:border-white/20 transition-all shadow-xl"
                   >
                       <div onClick={() => { 
                           const actualIdx = filteredMemories.findIndex(fm => fm.id === m.id);
                           setCurrentIndex(actualIdx !== -1 ? actualIdx : 0); 
                           setViewMode('theatre'); 
                           setIsNotesFilterActive(false);
-                      }} className="w-full h-full">
-                        {m.type === 'video' || m.name.endsWith('.mp4') ? (
-                            <div className="w-full h-full bg-black flex items-center justify-center"><Play className="w-12 h-12 text-white/20" /></div>
-                        ) : (
-                            <ResolvedImage src={m.photoUrl || m.url || ''} alt={m.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110" />
-                        )}
+                      }} className="w-full h-full pointer-events-none">
+                        <div className="w-full h-full pointer-events-auto">
+                            {m.type === 'video' || m.name.endsWith('.mp4') ? (
+                                <div className="w-full h-full bg-black flex items-center justify-center"><Play className="w-12 h-12 text-white/20" /></div>
+                            ) : (
+                                <ResolvedImage src={m.photoUrl || m.url || ''} alt={m.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110" />
+                            )}
+                        </div>
                       </div>
                       
                       {/* Favorite Star Icon */}
@@ -742,9 +754,9 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
 
                       <button onClick={(e) => { e.stopPropagation(); toggleSelection(m.id); }} className={`absolute top-2 right-2 p-2 rounded-full transition-all z-20 ${selectedIds.has(m.id) ? 'bg-emerald-500 text-white opacity-100' : 'bg-black/50 text-white/50 opacity-0 group-hover:opacity-100 hover:bg-black/80 hover:text-white'}`}>{selectedIds.has(m.id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}</button>
                       <button onClick={(e) => { e.stopPropagation(); downloadSingle(m); }} className="absolute bottom-2 right-2 p-2 bg-black/50 text-white/50 rounded-full opacity-0 group-hover:opacity-100 hover:bg-white hover:text-black transition-all z-20"><Download className="w-4 h-4" /></button>
-                  </motion.div>
+                  </Reorder.Item>
                 ))}
-              </div>
+              </Reorder.Group>
             </motion.div>
           )}
         </AnimatePresence>
@@ -756,7 +768,7 @@ export default function ImmersiveGallery({ tree, overrides, setOverrides, isSync
                     <header className="w-full max-w-7xl flex justify-between items-center mb-10">
                         <div className="flex flex-col">
                             <h2 className="text-3xl font-serif font-black italic uppercase tracking-tighter">PDF Archival Bundle</h2>
-                            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-500">Editor Protocol Active</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-500">Archive Editor Active</span>
                         </div>
                         <button onClick={() => setIsPdfCreatorOpen(false)} className="p-3 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-all text-gray-400"><X className="w-8 h-8" /></button>
                     </header>

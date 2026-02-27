@@ -13,6 +13,7 @@ import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 interface ExportFilter {
   families?: string[]; // list of slugs
   people?: string[]; // list of person IDs
+  filesOnly?: boolean; // if true, exclude images
 }
 
 class ExportServiceImpl {
@@ -20,7 +21,7 @@ class ExportServiceImpl {
     currentFamily: { name: string, slug: string, protocolKey: string },
     filter?: ExportFilter
   ): Promise<Blob> {
-    console.log("📂 [EXPORT] Initializing production archival build...");
+    console.log("📂 [EXPORT] Initializing archival build. Filter mode:", filter ? JSON.stringify(filter) : "ALL");
     const zip = new JSZip();
     
     // 1. Root Folders
@@ -114,7 +115,23 @@ class ExportServiceImpl {
             return { root: f, personMap };
         });
 
-        const downloadPromises = tree.memories.map(async (memory) => {
+        // FILTER: Apply people filter if provided
+        let targetMemories = tree.memories;
+        if (filter?.people && filter.people.length > 0) {
+            targetMemories = targetMemories.filter(m => m.tags?.personIds?.some(pid => filter.people?.includes(pid)));
+        }
+
+        // FILTER: Apply filesOnly filter if provided
+        if (filter?.filesOnly) {
+            targetMemories = targetMemories.filter(m => {
+                const ext = (m.name || '').split('.').pop()?.toLowerCase();
+                const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic'].includes(ext || '');
+                const isVideo = ['mp4', 'mov', 'avi', 'm4v'].includes(ext || '');
+                return !isImage && !isVideo;
+            });
+        }
+
+        const downloadPromises = targetMemories.map(async (memory) => {
             const uniqueKey = `${pKey}_${memory.id}`;
             if (processedMap.has(uniqueKey)) return;
             
@@ -131,11 +148,18 @@ class ExportServiceImpl {
                         try {
                             const storageRef = ref(storage, match[0]);
                             fetchUrl = await getDownloadURL(storageRef);
-                        } catch (e) {}
+                        } catch (e) {
+                            console.warn("Could not resolve storage path:", match[0]);
+                        }
                     }
                 }
 
-                const response = await fetch(fetchUrl);
+                // If it's a relative URL, try to make it absolute for fetch
+                if (fetchUrl.startsWith('/')) {
+                    fetchUrl = window.location.origin + fetchUrl;
+                }
+
+                const response = await fetch(fetchUrl, { mode: 'cors' });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const blob = await response.blob();
 
@@ -155,11 +179,17 @@ class ExportServiceImpl {
                 processedMap.add(uniqueKey);
                 totalSuccess++;
             } catch (err) {
-                console.error(`❌ [EXPORT] Failed: ${memory.name}`, err);
+                console.error(`❌ [EXPORT] Failed: ${memory.name} at ${fetchUrl}`, err);
             }
         });
 
+        // Use sequential or batched processing to avoid network exhaustion
+        // For now, staying with Promise.all but wrapped in better error handling.
         await Promise.all(downloadPromises);
+    }
+
+    if (totalSuccess === 0) {
+        console.warn("⚠️ [EXPORT] No files were successfully harvested.");
     }
 
     return await zip.generateAsync({

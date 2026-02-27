@@ -122,7 +122,7 @@ export default function NotesGallery({ tree, currentFamily }: NotesGalleryProps)
                     <div className="w-full md:w-2/5 h-full flex flex-col p-12 overflow-hidden border-l border-black/5 bg-white text-black">
                         <div className="flex items-center gap-3 mb-10">
                             <StickyNote className="w-5 h-5 text-emerald-500" />
-                            <h2 className="text-xs font-black uppercase tracking-[0.3em]">Transmission Log</h2>
+                            <h2 className="text-xs font-black uppercase tracking-[0.3em]">Message Log</h2>
                         </div>
 
                         <div className="flex-1 overflow-y-auto space-y-8 no-scrollbar pr-4">

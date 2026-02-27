@@ -137,7 +137,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
                 <div className={`flex items-center gap-2 px-3 py-1 rounded-full border transition-all ${isDM ? 'bg-blue-500/10 border-blue-500/30' : 'bg-emerald-500/10 border-emerald-500/30'}`}>
                     {isDM ? <MessageSquare className="w-3 h-3 text-blue-400" /> : <Paperclip className="w-3 h-3 text-emerald-400" />}
                     <span className={`text-[8px] font-black uppercase tracking-widest ${isDM ? 'text-blue-400' : 'text-emerald-400'}`}>
-                        {isDM ? 'Transmission' : 'Annotation'}
+                        {isDM ? 'Dispatch' : 'Note'}
                     </span>
                 </div>
 
@@ -153,7 +153,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
                         <input 
                             ref={searchInputRef}
                             type="text" 
-                            placeholder={participants.length === 0 ? "ADD RECIPIENT..." : ""}
+                            placeholder={participants.length === 0 ? "SELECT MEMBER..." : ""}
                             className="bg-transparent border-none text-[9px] font-black uppercase tracking-[0.2em] focus:ring-0 p-0 w-24 text-white placeholder:text-white/10"
                             value={searchText}
                             onFocus={() => setIsSearchFocused(true)}
@@ -164,14 +164,14 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
 
                     <AnimatePresence>
                         {searchResults.length > 0 && (
-                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute z-[110] left-0 bottom-full mb-6 bg-[#0a0a0a] backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden min-w-[280px]">
-                            <div className="px-4 py-3 border-b border-white/5 bg-white/5">
-                                <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/40">Select Identity</span>
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute z-[110] left-0 bottom-full mb-6 bg-white dark:bg-[#0a0a0a] backdrop-blur-2xl border border-gray-200 dark:border-white/10 rounded-sm shadow-2xl overflow-hidden min-w-[280px]">
+                            <div className="px-4 py-3 border-b border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-white/5">
+                                <span className="text-[8px] font-black uppercase tracking-[0.3em] text-gray-400 dark:text-white/40">Select Member</span>
                             </div>
                             {searchResults.map(r => (
-                            <div key={r.id} className="p-4 hover:bg-blue-600/20 cursor-pointer border-b border-white/5 last:border-0 flex items-center justify-between group/item transition-colors" onClick={() => addParticipant(r)}>
-                                <div className="flex items-center gap-3 text-white">
-                                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                            <div key={r.id} className="p-4 hover:bg-emerald-500/10 cursor-pointer border-b border-gray-100 dark:border-white/5 last:border-0 flex items-center justify-between group/item transition-colors" onClick={() => addParticipant(r)}>
+                                <div className="flex items-center gap-3 text-gray-900 dark:text-white">
+                                    <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center">
                                         {r.type === 'family' ? <MessageSquare className="w-3.5 h-3.5 opacity-40" /> : r.type === 'global' ? <Globe className="w-3.5 h-3.5 text-blue-400" /> : <User className="w-3.5 h-3.5 opacity-40" />}
                                     </div>
                                     <div className="flex flex-col">
@@ -179,7 +179,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
                                         <span className="text-[7px] opacity-40 uppercase tracking-tighter">{r.type}</span>
                                     </div>
                                 </div>
-                                <UserPlus className="w-3.5 h-3.5 text-white/10 group-hover/item:text-blue-400 transition-colors" />
+                                <UserPlus className="w-3.5 h-3.5 text-gray-300 dark:text-white/10 group-hover/item:text-emerald-500 transition-colors" />
                             </div>
                             ))}
                         </motion.div>
@@ -201,14 +201,14 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ currentFamily, currentUser, pe
             {/* MESSAGE INPUT */}
             <div className="flex-1 relative flex items-center cursor-text py-1" onClick={() => messageInputRef.current?.focus()}>
                 {!isMessageFocused && messageText.length === 0 && (
-                    <span className="text-[13px] font-black uppercase tracking-[0.5em] text-white/10 absolute left-0 pointer-events-none transition-opacity duration-500 italic">
-                        {isDM ? 'TYPE MESSAGE...' : (attachedArtifact ? `ANNOTATING ${attachedArtifact.name.toUpperCase()}...` : 'SELECT ARTIFACT...')}
+                    <span className="text-[13px] font-black uppercase tracking-[0.5em] text-gray-400 dark:text-white/10 absolute left-0 pointer-events-none transition-opacity duration-500 italic">
+                        {isDM ? 'WRITE MESSAGE...' : (attachedArtifact ? `NOTE ON ${attachedArtifact.name.toUpperCase()}...` : 'SELECT OBJECT...')}
                     </span>
                 )}
                 <input 
                     ref={messageInputRef}
                     type="text" 
-                    className="flex-1 bg-transparent border-none text-[13px] font-bold tracking-widest focus:ring-0 p-0 text-white placeholder:text-white/5"
+                    className="flex-1 bg-transparent border-none text-[13px] font-bold tracking-widest focus:ring-0 p-0 text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-white/5"
                     value={messageText}
                     onFocus={() => setIsMessageFocused(true)}
                     onBlur={() => setIsMessageFocused(false)}

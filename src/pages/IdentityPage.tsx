@@ -42,7 +42,7 @@ export default function IdentityPage({ tree, onSelect, familyName }: IdentityPag
         className="w-full max-w-md z-10"
       >
         <div className="text-center mb-12">
-          <span className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.5em] mb-2 block italic">Identity Protocol</span>
+          <span className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.5em] mb-2 block italic">Access Profile</span>
           <h1 className="text-3xl font-serif font-bold text-gray-900 dark:text-white tracking-tight italic">Who are you?</h1>
           <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-2">{familyName}</p>
         </div>
@@ -105,7 +105,7 @@ export default function IdentityPage({ tree, onSelect, familyName }: IdentityPag
                     onClick={handleAddPerson}
                     className="flex-1 bg-black dark:bg-white text-white dark:text-black p-4 font-black text-[10px] uppercase tracking-[0.3em] hover:opacity-80 transition-all flex items-center justify-center gap-2"
                   >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Authorize"}
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm"}
                   </button>
                   <button 
                     onClick={() => setIsAdding(false)}

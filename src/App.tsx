@@ -256,7 +256,7 @@ function App() {
       <div className="bg-white dark:bg-black min-h-screen flex flex-col items-center justify-center p-12">
         <div className="flex flex-col items-center gap-6">
           <div className="w-12 h-12 border-2 border-black dark:border-white border-t-transparent dark:border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-400 dark:text-white/20 animate-pulse italic">Initializing Sovereign Protocol...</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-400 dark:text-white/20 animate-pulse italic">Opening Secure Archive...</span>
         </div>
       </div>
     );

@@ -56,7 +56,7 @@ export default function LandingPage({ onUnlock, itemCount = 0, error = null, isS
           <div className={`w-12 h-12 rounded-full border border-gray-200 dark:border-white/5 flex items-center justify-center transition-all duration-1000 ${isTyping ? 'border-gray-400 dark:border-white/20' : ''}`}>
             <Lock className={`w-3 h-3 text-gray-900 dark:text-white transition-opacity duration-1000 ${isTyping ? 'opacity-100' : 'opacity-10'}`} />
           </div>
-          <div className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.6em] italic">Accessing Archive</div>
+          <div className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.6em] italic">Member Access</div>
         </div>
       </motion.div>
 
@@ -90,7 +90,7 @@ export default function LandingPage({ onUnlock, itemCount = 0, error = null, isS
           <div className="flex flex-col items-center gap-2 text-red-500/80">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-3 h-3" />
-              <span>{error || 'Protocol Timeout (Verify Rules/Database)'}</span>
+              <span>{error || 'Archive Timeout (Verify Rules/Database)'}</span>
             </div>
           </div>
         ) : (
@@ -98,7 +98,7 @@ export default function LandingPage({ onUnlock, itemCount = 0, error = null, isS
             {isSyncing ? (
               <div className="flex items-center gap-1.5 text-blue-500/60 dark:text-blue-500/40 tracking-widest italic">
                 <Loader2 className="w-2 h-2 animate-spin" />
-                Handshaking with Cloud...
+                Syncing Archive...
               </div>
             ) : safeItemCount > 0 ? (
               <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500/40 tracking-widest">
@@ -108,13 +108,13 @@ export default function LandingPage({ onUnlock, itemCount = 0, error = null, isS
             ) : (
               <div className="flex items-center gap-1.5 text-red-500/40 dark:text-red-500/20 tracking-widest italic">
                 <AlertCircle className="w-2 h-2" />
-                Local Node Offline
+                Archive Offline
               </div>
             )}
           </div>
         )}
         <div className="text-gray-300 dark:text-white/10 uppercase tracking-[0.3em] font-black mt-2">
-          {familyName || 'The Murray Family Protocol'} // Schnitzelbank Website // Obsidian Edition
+          {familyName || 'The Murray Family Archive'} // Schnitzelbank Website // Obsidian Edition
         </div>
       </motion.div>
 

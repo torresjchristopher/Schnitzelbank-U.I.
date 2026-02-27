@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Download, Search, ChevronLeft, ChevronRight, Grid, Maximize2, Sun, Moon, CheckSquare, Square, FileText, File as FileIcon, FileType, Loader2, Users, PenTool, Type, X, AlignLeft, Upload } from 'lucide-react';
 import type { MemoryTree, Memory, Person } from '../types';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../App';
 import JSZip from 'jszip';
@@ -160,6 +160,11 @@ export default function FileCabinet({ tree, overrides, setOverrides, isSyncing, 
   const [annotationMode, setAnnotationMode] = useState<'off' | 'text' | 'cursive'>('off');
   const [artifactMessages, setArtifactMessages] = useState<ChatMessage[]>([]);
   const [showDescription, setShowDescription] = useState(true);
+  const [customOrder, setCustomOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem(`schnitzel_doc_order_${currentFamily.slug || 'global'}`);
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [orderedMemories, setOrderedMemories] = useState<Memory[]>([]);
   
   // Stable fallback year for purity
   const currentYear = useMemo(() => new Date().getUTCFullYear(), []);
@@ -167,6 +172,10 @@ export default function FileCabinet({ tree, overrides, setOverrides, isSyncing, 
   const hideTimerRef = useRef<any>(null);
   const cycleIntervalRef = useRef<any>(null);
   const showUiRef = useRef(showUi);
+
+  useEffect(() => {
+    localStorage.setItem(`schnitzel_doc_order_${currentFamily.slug || 'global'}`, JSON.stringify(customOrder));
+  }, [customOrder, currentFamily.slug]);
 
   const localMemories = useMemo(() => {
     try {
@@ -191,6 +200,18 @@ export default function FileCabinet({ tree, overrides, setOverrides, isSyncing, 
       });
     } catch (e) { return []; }
   }, [localMemories, filterPerson, searchQuery]);
+
+  useEffect(() => {
+    const sorted = [...filteredMemories].sort((a, b) => {
+        const idxA = customOrder.indexOf(a.id);
+        const idxB = customOrder.indexOf(b.id);
+        if (idxA === -1 && idxB === -1) return 0;
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+    });
+    setOrderedMemories(sorted);
+  }, [filteredMemories, customOrder]);
 
   const currentMemory = filteredMemories[currentIndex] || null;
 
@@ -411,15 +432,37 @@ export default function FileCabinet({ tree, overrides, setOverrides, isSyncing, 
             </motion.div>
           ) : (
             <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 overflow-y-auto p-10 pt-32 custom-scrollbar" onClick={() => setShowUi(false)}>
-              <div className={`grid ${getGridCols()} gap-6 max-w-[1800px] mx-auto pb-20`}>
-                {filteredMemories.map((m, idx) => (
-                  <motion.div key={m.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative aspect-[3/4] bg-gray-100 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-sm overflow-hidden cursor-pointer group hover:border-gray-400 transition-all shadow-xl">
-                      <div onClick={() => { setCurrentIndex(idx); setViewMode('theatre'); }} className="w-full h-full"><DocumentPreview memory={m} /></div>
-                      <button onClick={(e) => { e.stopPropagation(); toggleSelection(m.id); }} className={`absolute top-2 right-2 p-2 rounded-full transition-all ${selectedIds.has(m.id) ? 'bg-emerald-500 text-white opacity-100' : 'bg-black/50 text-white/50 opacity-0 group-hover:opacity-100 hover:bg-black/80 hover:text-white'}`}>{selectedIds.has(m.id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}</button>
-                      <button onClick={(e) => { e.stopPropagation(); downloadSingle(m); }} className="absolute bottom-2 right-2 p-2 bg-black/50 text-white/50 rounded-full opacity-0 group-hover:opacity-100 hover:bg-white hover:text-black transition-all"><Download className="w-4 h-4" /></button>
-                  </motion.div>
+              <Reorder.Group 
+                axis="y" 
+                values={orderedMemories} 
+                onReorder={(newOrder) => {
+                    setOrderedMemories(newOrder);
+                    setCustomOrder(newOrder.map(m => m.id));
+                }}
+                className={`grid ${getGridCols()} gap-6 max-w-[1800px] mx-auto pb-20`}
+              >
+                {orderedMemories.map((m, idx) => (
+                  <Reorder.Item 
+                    key={m.id} 
+                    value={m}
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    className="relative aspect-[3/4] bg-gray-100 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-sm overflow-hidden cursor-move group hover:border-gray-400 transition-all shadow-xl"
+                  >
+                      <div onClick={() => { 
+                          const actualIdx = filteredMemories.findIndex(fm => fm.id === m.id);
+                          setCurrentIndex(actualIdx !== -1 ? actualIdx : 0); 
+                          setViewMode('theatre'); 
+                      }} className="w-full h-full pointer-events-none">
+                          <div className="w-full h-full pointer-events-auto">
+                              <DocumentPreview memory={m} />
+                          </div>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); toggleSelection(m.id); }} className={`absolute top-2 right-2 p-2 rounded-full transition-all z-20 ${selectedIds.has(m.id) ? 'bg-emerald-500 text-white opacity-100' : 'bg-black/50 text-white/50 opacity-0 group-hover:opacity-100 hover:bg-black/80 hover:text-white'}`}>{selectedIds.has(m.id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}</button>
+                      <button onClick={(e) => { e.stopPropagation(); downloadSingle(m); }} className="absolute bottom-2 right-2 p-2 bg-black/50 text-white/50 rounded-full opacity-0 group-hover:opacity-100 hover:bg-white hover:text-black transition-all z-20"><Download className="w-4 h-4" /></button>
+                  </Reorder.Item>
                 ))}
-              </div>
+              </Reorder.Group>
             </motion.div>
           )}
         </AnimatePresence>
