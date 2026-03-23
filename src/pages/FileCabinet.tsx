@@ -441,7 +441,7 @@ export default function FileCabinet({ tree, overrides, setOverrides, isSyncing, 
                 }}
                 className={`grid ${getGridCols()} gap-6 max-w-[1800px] mx-auto pb-20`}
               >
-                {orderedMemories.map((m, idx) => (
+                {orderedMemories.map((m) => (
                   <Reorder.Item 
                     key={m.id} 
                     value={m}

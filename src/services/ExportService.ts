@@ -138,8 +138,8 @@ class ExportServiceImpl {
             const sourceUrl = memory.url || memory.photoUrl;
             if (!sourceUrl) return;
 
+            let fetchUrl = sourceUrl;
             try {
-                let fetchUrl = sourceUrl;
                 
                 // Fixed URL resolution to prevent 404s
                 if (fetchUrl.includes('storage.googleapis.com') && !fetchUrl.includes('firebasestorage')) {
